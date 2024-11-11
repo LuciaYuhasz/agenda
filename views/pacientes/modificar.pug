@@ -1,0 +1,30 @@
+extends ../layout.pug
+
+block contenido
+    .container
+        h1 Modificar Paciente
+        form(action=`/pacientes/editar/${paciente.id_paciente}`, method="POST")
+            .mb-3
+                label(for="nombre", class="form-label") Nombre
+                input#nombre.form-control(type="text", name="nombre", value=paciente.nombre, required)
+            .mb-3
+                label(for="apellido", class="form-label") Apellido
+                input#apellido.form-control(type="text", name="apellido", value=paciente.apellido, required)
+            .mb-3
+                label(for="dni", class="form-label") DNI
+                input#dni.form-control(type="text", name="dni", value=paciente.dni)
+            .mb-3
+                label(for="obra_social", class="form-label") Obra Social
+                input#obra_social.form-control(type="text", name="obra_social", value=paciente.obra_social)
+            .mb-3
+                label(for="telefono", class="form-label") Teléfono
+                input#telefono.form-control(type="text", name="telefono", value=paciente.telefono)
+            .mb-3
+                label(for="email", class="form-label") Email
+                input#email.form-control(type="email", name="email", value=paciente.email)
+            .mb-3
+                label(for="activo", class="form-label") Activo
+                select#activo.form-control(name="activo")
+                    option(value="1", selected=paciente.activo==1) Activo
+                    option(value="0", selected=paciente.activo==0) Inactivo
+            button.btn.btn-primary(type="submit") Modificar

@@ -1,0 +1,16 @@
+//- horarios.pug
+.card.mb-4
+    .card-header
+        h5 Horarios Disponibles
+    .card-body
+        .mb-3
+            p Por favor, selecciona un horario disponible:
+        .horarios-container
+            form(action="/crearTurno" method="POST")
+                label(for="hora") Seleccionar horario:
+                select(name="hora", id="hora-select", class="form-select", required)
+                option(value="", disabled selected) Selecciona un horario
+                // Aquí se generan los horarios dinámicamente
+                each horario in horariosDisponibles
+                    option(value=horario.hora_inicio) #{horario.fecha} - #{horario.hora_inicio} a #{horario.hora_fin}
+                    //input(type="time", name="hora", class="form-control") // Para la hora

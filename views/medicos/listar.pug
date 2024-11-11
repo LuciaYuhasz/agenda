@@ -1,0 +1,32 @@
+//- views/medicos/listar.pug
+extends ../layout.pug
+
+block contenido
+    a(href="/medicos/crear" class= "btn btn-success") Ingresar Medico
+    
+    .container
+        .row
+            each medico in medicos
+                .col-md-4
+                    .card.mb-4(class=(medico.activo == 1) ? 'bg-light' : 'bg-secondary text-white')
+                        .card-body
+                            h5.card-title #{medico.nombre} #{medico.apellido}
+                            h6.card-subtitle.mb-2.text-muted ID: #{medico.id_profesional}
+                            p.card-text 
+                                | <strong>DNI:</strong> #{medico.dni}
+                                br
+                                | <strong>Sucursal:</strong> #{medico.sucursal_nombre}
+                                br
+                                | <strong>Email:</strong> #{medico.email}
+                                br
+                                | <strong>Especialidades:</strong> #{medico.especialidades}
+                                br
+                                | <strong>Matrículas:</strong> #{medico.matriculas}
+                                br
+                                | <strong>Estado:</strong> #{medico.activo == 1 ? 'Activo' : 'Inactivo'}
+                            .card-footer.d-flex.justify-content-between
+                                a(href=`/medicos/editar/${medico.id_profesional}` class="btn btn-info btn-sm") Modificar
+                                form(action=`/medicos/eliminar/${medico.id_profesional}`, method="POST" style="display:inline;")
+                                    button(type="submit" class="btn btn-danger btn-sm" onclick="return confirm('¿Estás seguro de que deseas eliminar a este médico?');") Borrar
+
+                        

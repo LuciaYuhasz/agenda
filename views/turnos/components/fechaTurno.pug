@@ -1,0 +1,14 @@
+//- fechaTurno.pug
+.card.mb-4
+    .card-header
+        h5 Fecha del Turno
+    .card-body
+        .mb-3
+            label(for="fecha-turno", class="form-label") Selecciona una fecha:
+            input(type="date", id="fecha-turno", name="fecha", class="form-control")
+            input(type="hidden", name="id_profesional", value=id_profesional) 
+            
+        .mb-3
+            button(type="button", id="cambiar-semana", class="btn btn-secondary") Cambiar Semana
+            button(type="button", id="cambiar-mes", class="btn btn-secondary") Cambiar Mes
+            

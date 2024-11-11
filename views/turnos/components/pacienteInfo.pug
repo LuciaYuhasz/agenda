@@ -1,0 +1,26 @@
+//- pacienteInfo.pug
+.card.mb-4
+    .card-header
+        h5 Información del Paciente
+    .card-body
+            .mb-3
+                label(for="paciente-input", class="form-label") Paciente:
+                input(type="text", id="paciente-input", class="form-control", required, placeholder="Buscar paciente por nombre, apellido o DNI")
+                input(type="hidden", name="id_paciente", id="id_paciente", required)
+                input(type="hidden", name="dni", id="dni")
+
+            .row.mt-3
+                .col-md-4
+                    p Nombre: <span id="nombre-paciente"></span>
+                .col-md-4
+                    p Apellido: <span id="apellido-paciente"></span>
+                .col-md-4
+                    p DNI: <span id="dni-paciente-info"></span>
+
+            .row
+                .col-md-4
+                    p Obra Social: <span id="obra-social-paciente"></span>
+                .col-md-4
+                    p Teléfono: <span id="telefono-paciente"></span>
+                .col-md-4
+                    p Email: <span id="email-paciente"></span>

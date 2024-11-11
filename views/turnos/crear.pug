@@ -1,0 +1,347 @@
+extends ../layout.pug
+
+block contenido
+  .container
+    meta(charset="UTF-8")
+    title Crear Nuevo Turno
+    script.
+      function buscarpaciente() {
+          const input = document.getElementById('paciente_autocomplete').value;
+          const listaPacientes = document.getElementById('lista_pacientes');
+
+          if (input.length >= 3) {
+              fetch(`/buscarpaciente?query=${input}`)
+                  .then(response => {
+                      if (!response.ok) {
+                          throw new Error('Error en la red: ' + response.status);
+                      }
+                      return response.json();
+                  })
+                  .then(data => {
+                      console.log('Datos de pacientes:', data); // Log de datos
+                      listaPacientes.innerHTML = ''; // Limpiar resultados anteriores
+                      listaPacientes.style.display = 'block';
+
+                      if (Array.isArray(data)) {
+                          data.forEach(paciente => {
+                              const item = document.createElement('li');
+                              item.textContent = `${paciente.nombre} ${paciente.apellido} (${paciente.dni})`;
+                              item.onclick = () => seleccionarPaciente(paciente);
+                              listaPacientes.appendChild(item);
+                          });
+                      } else {
+                          listaPacientes.style.display = 'none';
+                      }
+                  })
+                  .catch(error => console.error('Error al buscar paciente:', error));
+          } else {
+              listaPacientes.style.display = 'none';
+          }
+      }
+
+      function seleccionarPaciente(paciente) {
+          console.log('Paciente seleccionado:', paciente); // Log de paciente seleccionado
+          document.getElementById('paciente_autocomplete').value = `${paciente.nombre} ${paciente.apellido} (${paciente.dni})`;
+          document.getElementById('id_paciente').value = paciente.id_paciente; // Guardar ID en campo oculto
+          document.getElementById('lista_pacientes').style.display = 'none'; // Ocultar lista
+
+          // Rellenar los campos con información del paciente
+          document.getElementById('nombre').value = paciente.nombre;
+          document.getElementById('apellido').value = paciente.apellido;
+          document.getElementById('dni').value = paciente.dni;
+          document.getElementById('obra_social').value = paciente.obra_social;
+          document.getElementById('telefono').value = paciente.telefono;
+          document.getElementById('email').value = paciente.email;
+      }
+
+      function buscarEspecialidad() {
+          const input = document.getElementById('especialidad_autocomplete').value;
+          const listaEspecialidades = document.getElementById('lista_especialidades');
+
+          if (input.length >= 2) {
+              fetch(`/buscarespecialidad?query=${input}`)
+                  .then(response => response.json())
+                  .then(data => {
+                      console.log('Datos de especialidades:', data); // Log de datos
+                      listaEspecialidades.innerHTML = ''; // Limpiar resultados anteriores
+                      listaEspecialidades.style.display = 'block';
+
+                      data.forEach(especialidad => {
+                          const item = document.createElement('li');
+                          item.textContent = especialidad.nombre;
+                          item.onclick = () => seleccionarEspecialidad(especialidad);
+                          listaEspecialidades.appendChild(item);
+                      });
+                  })
+                  .catch(error => console.error('Error al buscar especialidad:', error));
+          } else {
+              listaEspecialidades.style.display = 'none';
+          }
+      }
+
+      function seleccionarEspecialidad(especialidad) {
+          console.log('Especialidad seleccionada:', especialidad); // Log de especialidad seleccionada
+          document.getElementById('especialidad_autocomplete').value = especialidad.nombre;
+          document.getElementById('id_especialidad').value = especialidad.id_especialidad; // Guardar ID en campo oculto
+          document.getElementById('lista_especialidades').style.display = 'none'; // Ocultar lista
+          obtenerProfesionales(); // Cargar profesionales basados en la especialidad seleccionada
+      }
+
+      function obtenerProfesionales() {
+          const idEspecialidad = document.getElementById('id_especialidad').value;
+          const profesionalSelect = document.getElementById('profesional');
+
+          if (idEspecialidad) {
+              fetch(`/profesionales/${idEspecialidad}`)
+                  .then(response => response.json())
+                  .then(data => {
+                      console.log('Datos de profesionales:', data); // Log de datos
+                      profesionalSelect.innerHTML = ''; // Limpiar opciones previas
+
+                      data.forEach(profesional => {
+                          const option = document.createElement('option');
+                          option.value = profesional.id_profesional;
+                          option.textContent = `${profesional.nombre} (${profesional.activo ? 'Activo' : 'Inactivo'})`;
+                          profesionalSelect.appendChild(option);
+                      });
+                  })
+                  .catch(error => console.error('Error al obtener profesionales:', error));
+          } else {
+              profesionalSelect.innerHTML = '';
+          }
+      }
+
+      function obtenerDatosProfesional() {
+          const idProfesional = document.getElementById('profesional').value;
+          const idEspecialidad = document.getElementById('id_especialidad').value;
+
+          if (idProfesional && idEspecialidad) {
+              //fetch(`http://localhost:3000/profesional/${idProfesional}/especialidad/${idEspecialidad}`)
+              fetch(`/profesional/${idProfesional}/especialidad/${idEspecialidad}`)
+
+                  .then(response => {
+                      if (!response.ok) {
+                          throw new Error('Error en la respuesta de la red');
+                      }
+                      return response.json();
+                  })
+                  .then(data => {
+                      console.log('Datos del profesional:', data); // Log de datos del profesional
+                      document.getElementById('nombre_profesional').value = data.nombre_profesional;
+                      document.getElementById('apellido_profesional').value = data.apellido_profesional;
+                      document.getElementById('dni_profesional').value = data.dni;
+                      document.getElementById('email_profesional').value = data.email;
+                      document.getElementById('matricula').value = data.matricula;
+                      document.getElementById('especialidad_profesional').value = data.especialidad;
+                      obtenerHorarios();
+                  })
+                  .catch(error => console.error('Error al obtener datos del profesional:', error));
+          }
+      }
+
+      function obtenerHorarios() {
+          const idProfesional = document.getElementById('profesional').value;
+          const idEspecialidad = document.getElementById('id_especialidad').value;
+          const fechaTable = document.getElementById('fechaTable').querySelector('tbody'); // Asegúrate de seleccionar el tbody
+
+          if (idProfesional && idEspecialidad) {
+              fetch(`/obtenerHorarios/${idProfesional}/${idEspecialidad}`)
+                  .then(response => response.json())
+                  .then(horarios => {
+                      console.log('Horarios obtenidos:', horarios); // Log de horarios
+                      fechaTable.innerHTML = ''; // Limpiar el contenido previo de la tabla
+                      const horariosPorFecha = {};
+
+                      horarios.forEach(horario => {
+                          const fecha = new Date(horario.fecha).toISOString().split('T')[0]; // Convertir la fecha al formato YYYY-MM-DD
+                          if (!horariosPorFecha[fecha]) {
+                              horariosPorFecha[fecha] = [];
+                          }
+                          horariosPorFecha[fecha].push(horario);
+                      });
+
+                      // Procesamos las fechas y los horarios
+                      Object.keys(horariosPorFecha).forEach(fecha => {
+                          const tr = document.createElement('tr');
+                          
+                          // Celda para la fecha (izquierda)
+                          const tdFecha = document.createElement('td');
+                          tdFecha.classList.add('fecha-columna');  // Clase para la columna de fecha
+                          tdFecha.textContent = fecha;  // Mostramos la fecha
+                          tr.appendChild(tdFecha);
+
+                          // Celda para los horarios (derecha)
+                          const tdHorarios = document.createElement('td');
+                          tdHorarios.classList.add('horarios-columna');  // Clase para la columna de horarios
+                          tdHorarios.style.display = 'flex';  // Usamos flexbox para mostrar los horarios horizontalmente
+                          tdHorarios.style.flexWrap = 'wrap';  // Aseguramos que los horarios se acomoden en varias filas si es necesario
+                          tdHorarios.style.gap = '10px';  // Espaciado entre los horarios
+
+                          // Agregar los botones de horarios como "cards"
+                          horariosPorFecha[fecha].forEach(horario => {
+                              // Envolver el botón en un div para mayor control
+                              const horarioDiv = document.createElement('div');
+                              horarioDiv.classList.add('card-horario');  // Clase para los "cards"
+
+                              const btnHorario = document.createElement('button');
+                              btnHorario.classList.add('btn-horario');  // Estilo de botón
+                              btnHorario.textContent = `${horario.hora_inicio} - ${horario.hora_fin}`;
+
+                              // Evento de click
+                              btnHorario.onclick = () => {
+                                  const horarioSeleccionado = horario.hora_inicio;
+                                  const fechaSeleccionada = fecha;
+                                  const idHorarioSeleccionado = horario.id_horarios; 
+                                  document.getElementById('horario').value = horarioSeleccionado;
+                                  document.getElementById('fecha').value = fechaSeleccionada;
+                                  document.getElementById('id_horario').value = idHorarioSeleccionado;
+                                  console.log('Fecha seleccionada:', fechaSeleccionada);
+                                  console.log('Horario asignado:', horarioSeleccionado);
+                              };
+
+                              horarioDiv.appendChild(btnHorario);
+                              tdHorarios.appendChild(horarioDiv);
+                          });
+
+                          tr.appendChild(tdHorarios);
+                          fechaTable.appendChild(tr);
+                      });
+                  })
+                  .catch(error => console.error('Error al obtener horarios disponibles:', error));  // Aquí el .catch() está correctamente encadenado
+          }
+      }
+
+      document.addEventListener('DOMContentLoaded', function() {
+          document.querySelector('form').addEventListener('submit', function(event) {
+              // Mostramos el mensaje de alerta
+              alert("Turno guardado exitosamente!");
+
+              // Si quieres evitar que el formulario se envíe inmediatamente, descomenta la siguiente línea:
+              // event.preventDefault(); // Esto evitaría que el formulario se envíe, pero es opcional
+          });
+      });
+    
+    h1 Crear Nuevo Turno
+    form(action="../crear" method="POST")
+      .section-paciente
+        h3 Información del Paciente
+        .row
+          .col-md-6
+            label(for="paciente_autocomplete") Paciente:
+            input.form-control(type="text" name="paciente_autocomplete" id="paciente_autocomplete" placeholder="Nombre, Apellido o DNI" oninput="buscarpaciente()" required)
+            input(type="hidden" name="id_paciente" id="id_paciente")
+            ul#lista_pacientes(style="display: none")
+          .col-md-6
+            label(for="nombre") Nombre:
+            input.form-control(type="text" id="nombre" readonly)
+        .row
+          .col-md-6
+            label(for="apellido") Apellido:
+            input.form-control(type="text" id="apellido" readonly)
+          .col-md-6
+            label(for="dni") DNI:
+            input.form-control(type="text" id="dni" readonly)
+        .row
+          .col-md-6
+            label(for="obra_social") Obra Social:
+            input.form-control(type="text" id="obra_social" readonly)
+          .col-md-6
+            label(for="telefono") Teléfono:
+            input.form-control(type="text" id="telefono" readonly)
+        .row
+          .col-md-12
+            label(for="email") Email:
+            input.form-control(type="text" id="email" readonly)
+        hr
+      // Información del Profesional (Parte Media)
+      .section-profesional
+        h3 Especialidad Medica:
+        .row
+          .col-md-6
+            label(for="especialidad_autocomplete")
+            input.form-control(type="text" name="especialidad_autocomplete" id="especialidad_autocomplete" placeholder="Buscar especialidad" oninput="buscarEspecialidad()" required)
+            input(type="hidden" name="id_especialidad" id="id_especialidad")
+            ul#lista_especialidades(style="display: none")
+        br
+        h3 Información del Profesional
+        .col-md-6
+          label(for="profesional") Seleccione un profesional
+          select.form-control(name="id_profesional" id="profesional" onchange="obtenerDatosProfesional()" required)
+            option(value="") Seleccione un profesional
+        .row
+          .col-md-6
+            label(for="nombre_profesional") Nombre del Profesional:
+            input.form-control(type="text" id="nombre_profesional" readonly)
+          .col-md-6
+            label(for="apellido_profesional") Apellido del Profesional:
+            input.form-control(type="text" id="apellido_profesional" readonly)
+        .row
+          .col-md-6
+            label(for="dni_profesional") DNI del Profesional:
+            input.form-control(type="text" id="dni_profesional" readonly)
+          .col-md-6
+            label(for="email_profesional") Email del Profesional:
+            input.form-control(type="text" id="email_profesional" readonly)
+        .row
+          .col-md-6
+            label(for="matricula") Matrícula:
+            input.form-control(type="text" id="matricula" readonly)
+          .col-md-6
+            label(for="especialidad_profesional") Especialidad:
+            input.form-control(type="text" id="especialidad_profesional" readonly)
+        hr
+      // Información del Turno (Parte Inferior)
+      .section-turno
+        h3 Información del Turno
+        .row
+          .col-md-12
+            label(for="fecha") Fecha:
+            table.table#fechaTable
+              thead
+                tr
+                  th Fecha
+                  th Horarios
+                  input(type="hidden" name="fecha" id="fecha")
+
+              tbody
+          .row
+            .col-md-6
+              label(for="estado") Estado:
+              select.form-control(name="estado" id="estado")
+                option(value="No disponible") No disponible
+                option(value="Libre") Libre
+                option(value="Reservada") Reservada
+                option(value="Confirmado", selected) Confirmado
+                option(value="Cancelado") Cancelado
+                option(value="Ausente") Ausente
+                option(value="Presente") Presente
+                option(value="En consulta") En consulta
+                option(value="Atendido") Atendido
+            .col-md-6
+              label(for="motivo_consulta") Motivo de Consulta:
+              input.form-control(type="text" name="motivo_consulta" id="motivo_consulta" required)
+        .row
+          .col-md-12.text-center
+            br
+            // Campo oculto para el horario:
+            input(type="hidden" name="horario" id="horario")
+            input(type="hidden" name="id_horario" id="id_horario")
+
+        .row
+          .col-md-12
+          br
+          label(for="sobreturno") Sobreturno:
+          input.form-check-input(type="checkbox" name="sobreturno" id="sobreturno" value="1")
+          label(for="sobreturno") Marcar si es un sobreturno
+
+
+            button.btn.btn-primary(type="submit") Guardar Turno
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,23 @@
+extends ../layout.pug
+
+block contenido
+    form(action="/pacientes" method="post")
+        label(for="nombre") Nombre:
+        input(name="nombre", type="text", placeholder="Ingrese un nombre" required)
+        br
+        label(for="apellido") Apellido:
+        input(name="apellido", type="apellido", placeholder="Ingrese un apellido" required)
+        br
+        label(for="dni") DNI:
+        input(name="dni", type="dni", placeholder="Ingrese DNI" required)
+        br
+        label(for="obra_social") Obra Social:
+        input(name="obra_social", type="text", placeholder="Ingrese obra social")
+        br
+        label(for="telefono") Teléfono:
+        input(name="telefono", type="text", placeholder="Ingrese teléfono")
+        br
+        label(for="email") Email:
+        input(name="email", type="email", placeholder="Ingrese email")
+        br
+        input(type="submit", value="Agregar Paciente")

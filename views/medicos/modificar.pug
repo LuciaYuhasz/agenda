@@ -1,0 +1,24 @@
+extends ../layout.pug
+
+block contenido
+    .container
+        h1 Modificar Médico
+        form(action=`/medicos/editar/${medico.id_profesional}`, method="POST")
+            .mb-3
+                label(for="nombre", class="form-label") Nombre
+                input#nombre.form-control(type="text", name="nombre", value=medico.nombre, required)
+            .mb-3
+                label(for="apellido", class="form-label") Apellido
+                input#apellido.form-control(type="text", name="apellido", value=medico.apellido, required)
+            .mb-3
+                label(for="dni", class="form-label") DNI
+                input#dni.form-control(type="text", name="dni", value=medico.dni, required)
+            .mb-3
+                label(for="id_sucursal", class="form-label") Sucursal
+                input#id_sucursal.form-control(type="text", name="id_sucursal", value=medico.id_sucursal, required)
+            .mb-3
+                label(for="email", class="form-label") Email
+                input#email.form-control(type="email", name="email", value=medico.email, required)
+            button.btn.btn-primary(type="submit") Modificar
+
+          

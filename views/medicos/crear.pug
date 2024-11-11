@@ -1,0 +1,53 @@
+extends ../layout.pug
+
+block contenido
+    .container
+        h2 Agregar Médico
+        form(action="/medicos", method="post")
+            .mb-3
+                label(for="nombre", class="form-label") Nombre:
+                input(name="nombre", type="text", class="form-control", placeholder="Ingrese un nombre", required)
+            .mb-3
+                label(for="apellido", class="form-label") Apellido:
+                input(name="apellido", type="text", class="form-control", placeholder="Ingrese un apellido", required)
+            .mb-3
+                label(for="dni", class="form-label") DNI:
+                input(name="dni", type="text", class="form-control", placeholder="Ingrese DNI", required)
+            .mb-3
+                label(for="id_sucursal", class="form-label") Sucursal:
+                select(name="id_sucursal", class="form-select", required)
+                    option(value="1") Sucursal Centro
+                    option(value="2") Sucursal Norte
+                    option(value="3") Sucursal Sur
+            .mb-3
+                label(for="email", class="form-label") Email:
+                input(name="email", type="email", class="form-control", placeholder="correo@gmail.com", required)
+            .mb-3
+                label(for="especialidades", class="form-label") Especialidades:
+                select(name="especialidades", class="form-select", required)
+                    option(value="1") Cardiología
+                    option(value="2") Pediatría
+                    option(value="3") Ginecologia
+                    option(value="4") Neurologia
+                    option(value="5") Dermatologia
+                    option(value="6") Oftalmología
+                    option(value="7") Psiquiatría
+                    option(value="8") Otorrinolaringología
+                    option(value="9") Traumatología
+                    option(value="10") Endocrinología
+                    option(value="11") Nefrología
+                    option(value="12") Oncología
+                    option(value="13") Neumonología
+                    option(value="14") Reumatología
+                    option(value="15") Urología
+                    option(value="16") Gastroenterología
+                    option(value="17") Cirugía General
+                    option(value="18") Medicina Interna
+                    option(value="19") Anestesiología
+                    option(value="20") Medicina Familiar
+            .mb-3
+                label(for="matricula", class="form-label") Matrícula:
+                input(name="matricula", type="text", class="form-control", placeholder="Ingrese matrícula", required)
+            button(type="submit", class="btn btn-primary") Agregar
+
+

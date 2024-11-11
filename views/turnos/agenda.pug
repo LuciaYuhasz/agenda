@@ -1,0 +1,53 @@
+extends ../layout.pug
+
+block contenido
+  .container
+    h1 Agenda de #{nombre} - Especialidad: #{especialidad.nombre}
+
+    //- Información del Profesional
+    .row
+      .col-md-4
+        h4 Datos del Profesional
+        p
+          strong Nombre: 
+          #{nombre} #{apellido}
+
+      .col-md-4
+        p
+          strong Matrícula:
+          #{matricula || 'No disponible'}
+
+      .col-md-4
+        p
+          strong Correo:
+          #{email || 'No disponible'}
+
+    table
+      thead
+        tr
+          th Fecha
+          th Hora
+          th Paciente
+          th Motivo
+          th Estado
+
+      tbody
+        each item in agenda
+          tr
+            td= item.fecha  
+            td= item.hora   
+            td= item.paciente 
+            td= item.motivo   
+            td
+              if item.tipo === 'ocupado'
+                span(style="color: red;") Ocupado
+              else
+                span(style="color: green;") Disponible
+
+
+
+
+
+
+
+    

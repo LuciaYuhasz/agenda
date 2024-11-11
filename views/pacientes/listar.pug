@@ -1,0 +1,29 @@
+//- views/pacientes/listar.pug
+extends ../layout.pug 
+block contenido 
+        a(href="/pacientes/create" class= "btn btn-success") Ingresar Paciente
+        table( class="table table-striped")
+            thead
+                tr
+                    th Nombre
+                    th Apellido
+                    th DNI
+                    th Obra Social
+                    th Teléfono
+                    th Email
+                    th Acciones
+                    th Activo
+            tbody
+                each paciente in pacientes
+                    tr(class=(paciente.activo == 1)? 'activo' : 'inactivo')
+                        td= paciente.nombre
+                        td= paciente.apellido
+                        td= paciente.dni
+                        td= paciente.obra_social
+                        td= paciente.telefono
+                        td= paciente.email
+                        td= (paciente.activo == 1) ? 'Activo' : 'Inactivo'
+                        td
+                           a(href=`/pacientes/editar/${paciente.id_paciente}` class="btn btn-info") Modificar 
+                           form(action=`/pacientes/eliminar/${paciente.id_paciente}`, method="POST", style="display:inline;")
+                            button(type="submit" class="btn btn-danger" onclick="return confirm('¿Estás seguro de que deseas eliminar a este paciente?');") Borrar

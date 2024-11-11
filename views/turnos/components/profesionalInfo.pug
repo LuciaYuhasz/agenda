@@ -1,0 +1,49 @@
+// Cuando el DOM esté completamente cargado
+      document.addEventListener('DOMContentLoaded', function () {
+        // Definir las variables que vas a utilizar dentro del evento 'submit'
+        const paciente = document.getElementById('id_paciente');
+        const especialidad = document.getElementById('id_especialidad');
+        const profesional = document.getElementById('profesional');
+        const horario = document.getElementById('horario');
+        const fecha = document.getElementById('fecha');
+        const estado = document.getElementById('estado');
+        document.querySelector('form').addEventListener('submit', function(event) {
+          event.preventDefault(); // Prevenir el envío normal del formulario
+
+          // Verificación de que todos los campos obligatorios estén completos
+          document.getElementById('id_paciente').value = paciente.id_paciente;
+          document.getElementById('id_especialidad').value = especialidad.id_especialidad;
+          document.getElementById('profesional').value = profesional.id_profesional;
+          document.getElementById('fecha').value = fecha;
+          document.getElementById('horario').value = horario;
+          document.getElementById('id_horario').value = id_horario;
+
+
+          if (!paciente || !especialidad || !profesional || !horario || !fecha || !estado) {
+            alert('Todos los campos son obligatorios');
+            return; // Detener el envío del formulario si algún campo está vacío
+          }
+
+          // Si todo está bien, preparar los datos para el envío
+          const formData = new FormData(this);
+
+          // Realizar la solicitud POST
+          fetch(this.action, {
+            method: 'POST',
+            body: formData
+          })
+          .then(response => response.json())
+          .then(data => {
+            console.log(data);
+            if (data.success) {
+              alert(data.message); // Mostrar mensaje de éxito
+            } else {
+              alert('Hubo un error: ' + data.error); // Mostrar error si hay alguno
+            }
+          })
+          .catch(error => {
+            console.error('Error:', error);
+            alert('Error al enviar la solicitud');
+          });
+        });
+      });
