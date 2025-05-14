@@ -1,0 +1,48 @@
+extends ../layout.pug
+
+block contenido
+    //- Datos del médico centrados en un contenedor con estilo
+    .container
+        .row.justify-content-center
+            .col-md-6
+                .card.mb-4
+                    .card-body
+                        //- Nombre y Apellido del Profesional en la parte superior
+                        h3.text-center Profesional: #{profesional ? `${profesional.nombre} ${profesional.apellido}` : 'Datos del profesional no disponibles'}
+                        
+                        //- Detalles adicionales del Profesional
+                        p.text-center
+                            span.font-weight-bold Email: #{profesional ? profesional.email : 'No disponible'}
+                        p.text-center
+                            span.font-weight-bold DNI: #{profesional ? profesional.dni : 'No disponible'}
+                        
+    //- Sección de Especialidades Asignadas
+    if especialidades.length > 0
+        h2.text-center.mt-4 Especialidades Asignadas
+        .container
+            .row
+                each especialidad in especialidades
+                    .col-md-4
+                        .card.mb-4
+                            .card-body
+                                h5.card-title.text-center #{especialidad.nombre}
+                                form(action=`/medicos/eliminar-especialidad/${profesional.id_profesional}/${especialidad.id_especialidad}`, method="POST")
+                                    button(type="submit" class="btn btn-danger btn-sm w-100" onclick="return confirm('¿Seguro que quieres eliminar esta especialidad?')") Eliminar Especialidad
+    else
+        p.text-center No hay especialidades asignadas aún.
+
+    //- Sección de Agregar Nueva Especialidad
+    h2.text-center.mt-5 Agregar Nueva Especialidad
+    .container
+        .row.justify-content-center
+            .col-md-6
+                form(action=`/medicos/agregar-especialidad/${profesional.id_profesional}`, method="POST")
+                    .mb-3
+                        label(for="especialidadId") Especialidad
+                        select(name="especialidadId" id="especialidadId" class="form-control" required)
+                            each especialidad in todasEspecialidades
+                                option(value=especialidad.id_especialidad) #{especialidad.nombre}
+                    .mb-3
+                        label(for="matricula") Matrícula
+                        input(type="text" name="matricula" id="matricula" class="form-control" required)
+                    button(type="submit" class="btn btn-primary btn-block mt-2") Agregar Especialidad

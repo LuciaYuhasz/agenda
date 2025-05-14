@@ -1,0 +1,36 @@
+extends ../../layout
+
+block contenido
+  head
+    title Cargar más horarios
+    link(rel="stylesheet" href="/css/styles.css")
+  body
+    h1 Cargar más Horarios para la Agenda
+
+    form(action="/create-schedule-batch" method="POST")
+      input(type="hidden" name="id_agenda" value=id_agenda)
+
+      div
+        label(for="hora_inicio") Hora de Inicio:
+        input(type="time" name="hora_inicio" required)
+
+      div
+        label(for="hora_fin") Hora de Fin:
+        input(type="time" name="hora_fin" required)
+
+      div
+        label(for="duracion_turno") Duración del Turno (en minutos):
+        input(type="number" name="duracion_turno" required)
+
+      div
+        label(for="rango_fechas_inicio") Fecha de Inicio:
+        input(type="date" name="rango_fechas_inicio" required)
+
+      div
+        label(for="rango_fechas_fin") Fecha de Fin:
+        input(type="date" name="rango_fechas_fin" required)
+
+      div
+        button(type="submit") Generar Horarios
+
+

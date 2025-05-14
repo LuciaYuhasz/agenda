@@ -1,0 +1,8 @@
+extends ../../layout.pug
+
+block contenido
+  h1 Seleccionar Especialidad
+  ul
+    each especialidad in especialidades
+      li
+        a(href=`?id_profesional=${id_profesional}&id_especialidad=${especialidad.id_especialidad}`) #{especialidad.nombre_especialidad}

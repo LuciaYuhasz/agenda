@@ -1,0 +1,43 @@
+extends ../../layout
+
+block contenido
+  head
+    title Agendas de Médicos
+    link(rel="stylesheet" href="/css/styles.css")
+  body
+    div.agendas-page
+      h1 Agendas de Médicos
+
+      if Object.keys(agendas).length
+        each fecha in Object.keys(agendas)
+          div.agenda-dia
+            h2= `Fecha: ${new Date(fecha).toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`
+            
+            // Tabla de horarios
+            table.agenda-tabla
+              thead
+                tr
+                  th Hora Inicio
+                  th Hora Fin
+                  th Estado
+              tbody
+                each horario in agendas[fecha]
+                  tr
+                    td= horario.hora_inicio
+                    td= horario.hora_fin
+                    td= horario.estado
+
+            // Botón para cargar más horarios en esta agenda
+            form(action="/create-schedule-batch" method="POST")
+              input(type="hidden" name="id_agenda" value=agendas[fecha][0].id_agenda)
+              button(type="submit") Cargar más horarios
+
+      else
+        p.no-agendas No hay agendas disponibles para este profesional y especialidad.
+
+      a.btn(href="/") Volver al inicio
+
+
+
+
+

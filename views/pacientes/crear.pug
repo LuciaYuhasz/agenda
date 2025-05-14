@@ -1,23 +1,77 @@
 extends ../layout.pug
 
 block contenido
-    form(action="/pacientes" method="post")
-        label(for="nombre") Nombre:
-        input(name="nombre", type="text", placeholder="Ingrese un nombre" required)
-        br
-        label(for="apellido") Apellido:
-        input(name="apellido", type="apellido", placeholder="Ingrese un apellido" required)
-        br
-        label(for="dni") DNI:
-        input(name="dni", type="dni", placeholder="Ingrese DNI" required)
-        br
-        label(for="obra_social") Obra Social:
-        input(name="obra_social", type="text", placeholder="Ingrese obra social")
-        br
-        label(for="telefono") Teléfono:
-        input(name="telefono", type="text", placeholder="Ingrese teléfono")
-        br
-        label(for="email") Email:
-        input(name="email", type="email", placeholder="Ingrese email")
-        br
-        input(type="submit", value="Agregar Paciente")
+  h1.form-title Formulario de Registro de Paciente
+  form(action="/pacientes" method="post")
+    .form-group
+      label(for="nombre") Nombre:
+      input(name="nombre", type="text", placeholder="Ingrese el nombre", required)
+    .form-group
+      label(for="apellido") Apellido:
+      input(name="apellido", type="text", placeholder="Ingrese el apellido", required)
+    .form-group
+      label(for="dni") DNI:
+      input(name="dni", type="text", placeholder="Ingrese DNI", required)
+    .form-group
+      label(for="obra_social") Obra Social:
+      input(name="obra_social", type="text", placeholder="Ingrese la obra social")
+    .form-group
+      label(for="telefono") Teléfono:
+      input(name="telefono", type="text", placeholder="Ingrese el teléfono")
+    .form-group
+      label(for="email") Email:
+      input(name="email", type="email", placeholder="Ingrese el email")
+    .form-group
+      button(type="submit") Agregar Paciente
+
+  // Agrega estilo opcional con una clase
+  style.
+    form {
+      max-width: 500px;
+      margin: 0 auto;
+      padding: 20px;
+      background-color: #f9f9f9;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    }
+
+    .form-group {
+      margin-bottom: 15px;
+    }
+
+    label {
+      display: block;
+      font-weight: bold;
+      margin-bottom: 5px;
+    }
+
+    input[type="text"], input[type="email"] {
+      width: 100%;
+      padding: 10px;
+      font-size: 14px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+
+    button {
+      width: 100%;
+      padding: 12px;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      font-size: 16px;
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
+
+    button:hover {
+      background-color: #45a049;
+    }
+
+    
+    .form-title {
+      text-align: center;
+      font-size: 24px;
+      margin-bottom: 20px;
+    }

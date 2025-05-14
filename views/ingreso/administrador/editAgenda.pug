@@ -1,0 +1,63 @@
+extends ../../layout
+block contenido
+
+  h1 Buscar Agenda
+
+  // Formulario para buscar una agenda
+  form(action="/buscar-agenda" method="GET")
+    div
+      label(for="id_profesional") Profesional:
+      select(name="id_profesional" id="id_profesional")
+
+        option(value="") -- Seleccione un profesional --
+        if profesionales && profesionales.length > 0
+          each profesional in profesionales
+            option(value=profesional.id_profesional) #{profesional.nombre_completo}
+
+
+    div
+      label(for="id_especialidad") Especialidad:
+      select(name="id_especialidad" id="id_especialidad" required)
+        option(value="") -- Seleccione una especialidad --
+    
+
+
+    div
+      button(type="submit") Buscar Agenda
+
+  hr
+
+  
+
+  script.
+    document.addEventListener("DOMContentLoaded", () => {
+        const profesionalSelect = document.getElementById("id_profesional");
+        const especialidadSelect = document.getElementById("id_especialidad");
+
+        profesionalSelect.addEventListener("change", async () => {
+            const profesionalId = profesionalSelect.value;
+
+            // Limpiar opciones previas
+            especialidadSelect.innerHTML = '<option value="">-- Seleccione una especialidad --</option>';
+
+            if (!profesionalId) return; // Si no se selecciona profesional, no hacer nada
+
+            try {
+                const response = await fetch(`/especialidades/${profesionalId}`);
+                if (!response.ok) throw new Error("Error al obtener especialidades");
+
+                const especialidades = await response.json();
+
+                // Añadir las nuevas opciones
+                especialidades.forEach(({ id_especialidad, nombre_especialidad }) => {
+                    const option = document.createElement("option");
+                    option.value = id_especialidad;
+                    option.textContent = nombre_especialidad;
+                    especialidadSelect.appendChild(option);
+                });
+            } catch (error) {
+                console.error("Error al cargar especialidades:", error);
+                alert("Hubo un error al cargar las especialidades.");
+            }
+        });
+    });

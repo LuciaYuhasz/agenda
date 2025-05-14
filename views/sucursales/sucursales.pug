@@ -1,0 +1,142 @@
+extends ../layout.pug
+
+block contenido
+  // Encabezado
+  .header
+    h1 Bienvenido a Agenda Médica
+    p Elige una opción para continuar
+
+  // Contenido principal
+  .container
+    .row.justify-content-center
+      // Opción: Elegir por Sucursal
+      .col-md-4.mb-4
+        button(type="button", class="btn btn-option", onclick="toggleContainer('sucursales-container')")
+          .option-card
+            img(src="https://via.placeholder.com/400x200?text=ELEGIR+POR+SUCURSAL", alt="Seleccionar sucursal")
+            h3.card-title Elegir por Sucursal
+
+      // Contenedor de las sucursales (oculto por defecto)
+      .col-md-12.mt-3#sucursales-container(style="display: none;")
+        .row
+          .col-md-6.mb-4
+            a(href="/ingreso/pacientes/sacarTurno", class="text-decoration-none")
+              .sucursal-card
+                img(src="https://via.placeholder.com/400x200?text=SUCURSAL+CENTRO", alt="Sucursal Centro")
+                h3.card-title Sucursal Centro
+          .col-md-6.mb-4
+            a(href="/sucursalInterior", class="text-decoration-none")
+              .sucursal-card
+                img(src="https://via.placeholder.com/400x200?text=SUCURSAL+DEL+INTERIOR", alt="Sucursal del Interior")
+                h3.card-title Sucursal del Interior
+
+      // Opción: Elegir por Profesional
+      .col-md-4.mb-4
+        button(type="button", class="btn btn-option", onclick="toggleContainer('profesionales-container')")
+          .option-card
+            img(src="https://via.placeholder.com/400x200?text=PROFESIONALES", alt="Seleccionar profesional")
+            h3.card-title Elegir por Profesional
+
+      // Contenedor para los profesionales (oculto por defecto)
+      .col-md-12.mt-3#profesionales-container(style="display: none;")
+        select.form-select#selectProfesionales
+          option(value="") Selecciona un profesional
+        button(type="button", class="btn btn-primary mt-3", onclick="confirmarProfesional()") Confirmar
+
+      // Contenedor para seleccionar especialidad (oculto por defecto)
+      .col-md-12.mt-3#especialidad-container(style="display: none;")
+        select.form-select#selectEspecialidad
+          option(value="") Selecciona una especialidad
+        button(type="button", class="btn btn-primary mt-3", onclick="confirmarEspecialidad()") Confirmar
+
+      // Opción: Elegir por Especialidad
+      .col-md-4.mb-4
+        a(href="/especialidades", class="text-decoration-none")
+          .option-card
+            img(src="https://via.placeholder.com/400x200?text=ESPECIALIDADES", alt="Seleccionar especialidad")
+            h3.card-title Elegir por Especialidad
+
+  // Footer
+  footer
+    p &copy; 2024 Agenda Médica - Todos los derechos reservados
+
+  // Script para mostrar/ocultar contenedores
+  script.
+    let idProfesionalSeleccionado = null; // Variable global para almacenar el ID del profesional seleccionado
+
+    async function cargarProfesionales() {
+      try {
+        const response = await fetch('/api/profesionales'); // Llama al endpoint
+        if (!response.ok) throw new Error('Error al obtener profesionales');
+        const profesionales = await response.json();
+
+        const select = document.getElementById('selectProfesionales');
+        select.innerHTML = '<option value="">Selecciona un profesional</option>'; // Limpia el select
+
+        profesionales.forEach(profesional => {
+          const option = document.createElement('option');
+          option.value = profesional.id_profesional; // ID del profesional
+          option.textContent = `${profesional.nombre} ${profesional.apellido} (${profesional.sucursal_nombre || 'Sin sucursal'})`;
+          select.appendChild(option);
+        });
+      } catch (error) {
+        console.error('Error al cargar profesionales:', error);
+        alert('Hubo un problema al cargar los profesionales.');
+      }
+    }
+
+    async function cargarEspecialidades(idProfesional) {
+      try {
+        const response = await fetch(`/api/especialidades/${idProfesional}`);
+        if (!response.ok) throw new Error('Error al obtener especialidades');
+        const especialidades = await response.json();
+
+        const select = document.getElementById('selectEspecialidad');
+        select.innerHTML = '<option value="">Selecciona una especialidad</option>'; // Limpia el select
+
+        especialidades.forEach(especialidad => {
+          const option = document.createElement('option');
+          option.value = especialidad.id_especialidad;
+          option.textContent = especialidad.nombre;
+          select.appendChild(option);
+        });
+      } catch (error) {
+        console.error('Error al cargar especialidades:', error);
+        alert('Hubo un problema al cargar las especialidades.');
+      }
+    }
+
+    function toggleContainer(containerId) {
+      const containers = ['sucursales-container', 'profesionales-container', 'especialidad-container'];
+      containers.forEach(id => {
+        const element = document.getElementById(id);
+        if (id === containerId) {
+          element.style.display = element.style.display === 'none' ? 'block' : 'none';
+          if (id === 'profesionales-container' && element.style.display === 'block') {
+            cargarProfesionales(); // Carga los profesionales dinámicamente
+          }
+        } else {
+          element.style.display = 'none';
+        }
+      });
+    }
+
+    function confirmarProfesional() {
+      idProfesionalSeleccionado = document.getElementById('selectProfesionales').value;
+      if (idProfesionalSeleccionado) {
+        alert(`Has seleccionado al profesional: ${idProfesionalSeleccionado}`);
+        toggleContainer('especialidad-container');
+        cargarEspecialidades(idProfesionalSeleccionado);
+      } else {
+        alert('Por favor, selecciona un profesional.');
+      }
+    }
+
+    function confirmarEspecialidad() {
+      const selectedEspecialidad = document.getElementById('selectEspecialidad').value;
+      if (selectedEspecialidad) {
+        alert(`Has seleccionado la especialidad: ${selectedEspecialidad}`);
+      } else {
+        alert('Por favor, selecciona una especialidad.');
+      }
+    }

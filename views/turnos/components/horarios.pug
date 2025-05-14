@@ -1,16 +1,109 @@
-//- horarios.pug
-.card.mb-4
-    .card-header
-        h5 Horarios Disponibles
-    .card-body
-        .mb-3
-            p Por favor, selecciona un horario disponible:
-        .horarios-container
-            form(action="/crearTurno" method="POST")
-                label(for="hora") Seleccionar horario:
-                select(name="hora", id="hora-select", class="form-select", required)
-                option(value="", disabled selected) Selecciona un horario
-                // Aquí se generan los horarios dinámicamente
-                each horario in horariosDisponibles
-                    option(value=horario.hora_inicio) #{horario.fecha} - #{horario.hora_inicio} a #{horario.hora_fin}
-                    //input(type="time", name="hora", class="form-control") // Para la hora
+extends ../layout.pug
+
+block contenido
+  // Encabezado
+  .header
+    h1 Bienvenido a Agenda Médica
+    p Elige tu sucursal para continuar
+
+  // Contenido principal
+  .container
+    .row.justify-content-center
+      .col-md-5.mb-4
+        a(href="/ingreso/pacientes/sacarTurno", class="text-decoration-none")
+          .sucursal-card
+            img(src="https://via.placeholder.com/400x200?text=SUCURSAL+CENTRO", alt="Sucursal Centro")
+            h3.card-title Sucursal Centro
+      .col-md-5.mb-4
+        a(href="/sucursalInterior", class="text-decoration-none")
+          .sucursal-card
+            img(src="https://via.placeholder.com/400x200?text=SUCURSAL+DEL+INTERIOR", alt="Sucursal del Interior")
+            h3.card-title Sucursal del Interior
+
+  // Footer
+  footer
+    p &copy; 2024 Agenda Médica - Todos los derechos reservados
+
+  // Estilos adicionales
+  style.
+    /* Reset básico */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    /* Tipografía */
+    @import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;700&display=swap');
+
+    /* Fondo y configuración general */
+    body {
+      background-color: #f2f9f2;
+      font-family: 'Open Sans', sans-serif;
+      text-align: center;
+    }
+
+    /* Encabezado con nueva gama de verdes */
+    .header {
+      padding: 30px 0;
+      background: linear-gradient(135deg, #2e7d32, #66bb6a);
+      color: white;
+      margin-bottom: 30px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    }
+
+    .header h1 {
+      font-size: 2.5rem;
+      margin-bottom: 5px;
+    }
+
+    .header p {
+      font-size: 1.2rem;
+      opacity: 0.9;
+    }
+
+    /* Contenedor principal con estilo */
+    .container {
+      margin-top: 20px;
+    }
+
+    /* Sucursal Card */
+    .sucursal-card {
+      position: relative;
+      overflow: hidden;
+      border-radius: 15px;
+      box-shadow: 0 6px 15px rgba(0, 0, 0, 0.2);
+      transition: all 0.3s ease;
+      border: 2px solid #c8e6c9;
+    }
+
+    .sucursal-card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+    }
+
+    .sucursal-card img {
+      width: 100%;
+      height: 200px;
+      object-fit: cover;
+      filter: brightness(85%);
+    }
+
+    .sucursal-card .card-title {
+      position: absolute;
+      bottom: 15px;
+      left: 15px;
+      color: white;
+      text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.7);
+      font-size: 1.6rem;
+      font-weight: bold;
+    }
+
+    /* Pie de página */
+    footer {
+      margin-top: 50px;
+      background-color: #2e7d32;
+      color: white;
+      padding: 10px 0;
+      font-size: 0.9rem;
+    }

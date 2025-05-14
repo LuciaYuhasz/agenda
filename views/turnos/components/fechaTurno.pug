@@ -1,14 +1,208 @@
-//- fechaTurno.pug
-.card.mb-4
-    .card-header
-        h5 Fecha del Turno
-    .card-body
-        .mb-3
-            label(for="fecha-turno", class="form-label") Selecciona una fecha:
-            input(type="date", id="fecha-turno", name="fecha", class="form-control")
-            input(type="hidden", name="id_profesional", value=id_profesional) 
-            
-        .mb-3
-            button(type="button", id="cambiar-semana", class="btn btn-secondary") Cambiar Semana
-            button(type="button", id="cambiar-mes", class="btn btn-secondary") Cambiar Mes
-            
+extends ../../layout
+
+block contenido
+  .container
+    h1 Reserva de Turno
+    form(action="/sacarTurno" method="POST" enctype="multipart/form-data")
+      
+      .section-especialidad
+        h3 Seleccionar Especialidad
+        .row
+          .col-md-12
+            label(for="especialidad_autocomplete") Especialidad:
+            input.form-control(type="text" name="especialidad_autocomplete" id="especialidad_autocomplete" placeholder="Buscar especialidad" oninput="buscarEspecialidad()" required)
+            input(type="hidden" name="id_especialidad" id="id_especialidad")
+            ul#lista_especialidades(style="display: none")
+        hr
+
+      .section-profesional
+        h3 Seleccionar Profesional
+        .row
+          .col-md-12
+            label(for="profesional") Profesional:
+            select.form-control(name="profesional" id="profesional" onchange="obtenerHorarios()" required)
+              option(value="" disabled selected) Seleccione un profesional
+        hr
+
+      .section-horario
+        h3 Seleccionar Fecha y Horario
+        .btn-group
+          button.btn.btn-secondary(id="prevWeek") Anterior Semana
+          button.btn.btn-secondary(id="nextWeek") Próxima Semana
+          button.btn.btn-secondary(id="nextMonth") Próximo Mes
+
+        table.table#fechaTable
+          thead
+            tr
+              th Fecha
+              th Horarios Disponibles
+          tbody
+        hr
+
+      .section-confirmar
+        input(type="hidden" name="id_horario" id="id_horario")
+        input(type="hidden" name="fecha" id="fecha")
+        input(type="hidden" name="horario" id="horario")
+        input(type="file" name="documento" id="documento" accept="image/*" required)
+        button.btn.btn-primary(type="submit") Reservar Turno
+
+  script.
+    const especialidades = !{JSON.stringify(especialidades)};
+    
+    function buscarEspecialidad() {
+      const input = document.getElementById('especialidad_autocomplete').value.toLowerCase();
+      const lista = document.getElementById('lista_especialidades');
+      lista.style.display = input ? 'block' : 'none';
+
+      lista.innerHTML = ''; // Limpia la lista
+      especialidades.forEach(especialidad => {
+        if (especialidad.nombre.toLowerCase().includes(input)) {
+          const li = document.createElement('li');
+          li.textContent = especialidad.nombre;
+          li.onclick = () => {
+            document.getElementById('especialidad_autocomplete').value = especialidad.nombre;
+            document.getElementById('id_especialidad').value = especialidad.id_especialidad;
+            lista.style.display = 'none';
+            cargarProfesionales();
+          };
+          lista.appendChild(li);
+        }
+      });
+    }
+
+    async function cargarProfesionales() {
+      const id_especialidad = document.getElementById('id_especialidad').value;
+      const select = document.getElementById('profesional');
+      select.innerHTML = '<option value="" disabled selected>Seleccione un profesional</option>';
+
+      if (id_especialidad) {
+        try {
+          const response = await fetch(`/api/profesionales/${id_especialidad}`);
+          if (!response.ok) throw new Error('Error en la respuesta del servidor');
+          const profesionales = await response.json();
+          profesionales.forEach(prof => {
+            const option = document.createElement('option');
+            option.value = prof.id_profesional;
+            option.textContent = prof.nombre;
+            select.appendChild(option);
+          });
+        } catch (error) {
+          console.error('Error al cargar profesionales:', error);
+        }
+      }
+    }
+
+    // Formato de la fecha con día de la semana
+    function obtenerDiaSemana(fecha) {
+      const dias = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+      const date = new Date(fecha);
+      const dia = dias[date.getDay()];
+      const diaNumero = date.getDate();
+      const mes = date.toLocaleString('default', { month: 'long' });
+      const año = date.getFullYear();
+      return `${dia}, ${diaNumero} de ${mes} de ${año}`;
+    }
+
+    async function obtenerHorarios() {
+      const idProfesional = document.getElementById('profesional').value;
+      const idEspecialidad = document.getElementById('id_especialidad').value;
+      const fechaTable = document.getElementById('fechaTable').querySelector('tbody'); 
+
+      if (idProfesional && idEspecialidad) {
+        try {
+          const response = await fetch(`/obtenerHorarios/${idProfesional}/${idEspecialidad}`);
+          const horarios = await response.json();
+
+          fechaTable.innerHTML = ''; 
+          const horariosPorFecha = {};
+
+          // Agrupar los horarios por fecha
+          horarios.forEach(horario => {
+            const fecha = new Date(horario.fecha).toISOString().split('T')[0];
+            if (!horariosPorFecha[fecha]) {
+              horariosPorFecha[fecha] = [];
+            }
+            horariosPorFecha[fecha].push(horario);
+          });
+
+          Object.keys(horariosPorFecha).forEach(fecha => {
+            const tr = document.createElement('tr');
+
+            // Celda para la fecha (izquierda)
+            const tdFecha = document.createElement('td');
+            tdFecha.classList.add('fecha-columna');
+            tdFecha.textContent = obtenerDiaSemana(fecha); 
+            tr.appendChild(tdFecha);
+
+            // Celda para los horarios (derecha)
+            const tdHorarios = document.createElement('td');
+            tdHorarios.classList.add('horarios-columna');
+            tdHorarios.style.display = 'grid'; 
+            tdHorarios.style.gridTemplateColumns = 'repeat(auto-fill, minmax(120px, 1fr))';
+            tdHorarios.style.gap = '10px'; 
+
+            // Agregar los botones de horarios como "cards"
+            horariosPorFecha[fecha].forEach(horario => {
+              const horarioDiv = document.createElement('div');
+              horarioDiv.classList.add('card-horario'); 
+
+              const btnHorario = document.createElement('button');
+              btnHorario.classList.add('btn-horario'); 
+              btnHorario.textContent = `${horario.hora_inicio} - ${horario.hora_fin}`;
+
+              btnHorario.onclick = () => {
+                const horarioSeleccionado = horario.hora_inicio;
+                const fechaSeleccionada = fecha;
+                const idHorarioSeleccionado = horario.id_horarios; 
+                document.getElementById('horario').value = horarioSeleccionado;
+                document.getElementById('fecha').value = fechaSeleccionada;
+                document.getElementById('id_horario').value = idHorarioSeleccionado;
+              };
+
+              horarioDiv.appendChild(btnHorario);
+              tdHorarios.appendChild(horarioDiv);
+            });
+
+            tr.appendChild(tdHorarios);
+            fechaTable.appendChild(tr);
+          });
+
+        } catch (error) {
+          console.error('Error al obtener horarios disponibles:', error);
+        }
+      }
+    }
+    
+    
+    document.getElementById('nextWeek').onclick = async () => {
+  const inicioSemana = new Date();
+  inicioSemana.setDate(inicioSemana.getDate() + 7);
+
+  const finSemana = new Date(inicioSemana);
+  finSemana.setDate(inicioSemana.getDate() + 6);
+
+  await mostrarHorarios(inicioSemana, finSemana);
+};
+
+document.getElementById('prevWeek').onclick = async () => {
+  const inicioSemana = new Date();
+  inicioSemana.setDate(inicioSemana.getDate() - 7);
+
+  const finSemana = new Date(inicioSemana);
+  finSemana.setDate(inicioSemana.getDate() + 6);
+
+  await mostrarHorarios(inicioSemana, finSemana);
+};
+
+async function mostrarHorarios(inicioSemana, finSemana) {
+  try {
+    const response = await fetch(`/obtenerHorarios/${idProfesional}/${idEspecialidad}?inicioSemana=${inicioSemana.toISOString().split('T')[0]}&finSemana=${finSemana.toISOString().split('T')[0]}`);
+    const horarios = await response.json();
+    // Renderiza los horarios en la tabla
+    console.log(horarios);
+  } catch (error) {
+    console.error('Error al mostrar horarios:', error);
+  }
+}
+
+

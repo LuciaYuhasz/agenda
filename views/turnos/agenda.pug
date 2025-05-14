@@ -2,27 +2,12 @@ extends ../layout.pug
 
 block contenido
   .container
-    h1 Agenda de #{nombre} - Especialidad: #{especialidad.nombre}
+    //- Título con estilo
+    h1.text-center(style="font-family: 'Roboto', sans-serif; font-weight: 700; font-size: 2.5rem; margin-bottom: 30px;")
+      | #{nombre} #{apellido} - #{especialidad.nombre}
 
-    //- Información del Profesional
-    .row
-      .col-md-4
-        h4 Datos del Profesional
-        p
-          strong Nombre: 
-          #{nombre} #{apellido}
-
-      .col-md-4
-        p
-          strong Matrícula:
-          #{matricula || 'No disponible'}
-
-      .col-md-4
-        p
-          strong Correo:
-          #{email || 'No disponible'}
-
-    table
+    //- Agenda de Turnos
+    table.table.table-bordered
       thead
         tr
           th Fecha
@@ -30,14 +15,13 @@ block contenido
           th Paciente
           th Motivo
           th Estado
-
       tbody
         each item in agenda
-          tr
-            td= item.fecha  
-            td= item.hora   
-            td= item.paciente 
-            td= item.motivo   
+          tr(class= item.tipo === 'ocupado' ? 'table-danger' : 'table-success')
+            td= item.fecha
+            td= item.hora
+            td= item.paciente || 'N/A'
+            td= item.motivo || 'N/A'
             td
               if item.tipo === 'ocupado'
                 span(style="color: red;") Ocupado

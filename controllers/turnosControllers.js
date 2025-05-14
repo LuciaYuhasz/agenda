@@ -34,20 +34,21 @@ exports.mostrarFormularioCrear = async (req, res) => {
     }
 };
 
-
 // Obtener horarios disponibles
 exports.obtenerHorarios = async (req, res) => {
     const id_profesional = req.params.id_profesional;  // ID del profesional
     const id_especialidad = req.params.id_especialidad; // ID de la especialidad
 
     const query = `
-        SELECT h.*
-        FROM horarios h
-        JOIN agendas a ON h.id_agenda = a.id_agenda
-        JOIN profesionales_especialidades pe ON a.id_profesional = pe.id_profesional
-        WHERE pe.id_profesional = ?
-        AND pe.id_especialidad = ?
-        AND h.estado = 2;  -- Solo horarios disponibles
+       SELECT h.*
+FROM horarios h
+JOIN agendas a ON h.id_agenda = a.id_agenda
+WHERE a.id_profesional = ? -- Pedro Gutierrez
+AND a.id_profesional_especialidad = ?  -- Aquí pones el id de la especialidad que deseas consultar, ej. Cardiología (1) o Pediatría (2)
+AND h.estado = 'Libre'
+ORDER BY h.fecha, h.hora_inicio;
+
+
     `;
 
     try {
@@ -64,7 +65,6 @@ exports.obtenerHorarios = async (req, res) => {
         res.status(500).json({ error: 'Error al obtener horarios disponibles' });
     }
 };
-
 exports.crearTurno = async (req, res) => {
     console.log('Controlador crearTurno iniciado');
     let {
@@ -114,16 +114,33 @@ exports.crearTurno = async (req, res) => {
     }
 
     try {
-        // Insertar el nuevo turno
+        // 1. Obtener el ID de la agenda
+        const agendaQuery = `
+            SELECT id_agenda
+            FROM agendas
+            WHERE id_profesional = ? AND id_profesional_especialidad = ?
+            LIMIT 1
+        `;
+        const [agendaResult] = await conn.query(agendaQuery, [id_profesional, id_especialidad]);
+
+        if (agendaResult.length === 0) {
+            console.log('No se encontró una agenda para este profesional y especialidad');
+            return res.status(404).json({ error: 'No se encontró una agenda asociada a este profesional y especialidad' });
+        }
+
+        const id_agenda = agendaResult[0].id_agenda; // Obtener el id_agenda
+
+        // 2. Insertar el nuevo turno, ahora con el id_agenda
         const insertQuery = `
-            INSERT INTO turnos (id_paciente, id_especialidad, id_profesional, fecha, hora, estado, motivo_consulta, sobreturno)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO turnos (id_paciente, id_especialidad, id_profesional, id_agenda, fecha, hora, estado, motivo_consulta, sobreturno)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         `;
 
         const [insertResult] = await conn.query(insertQuery, [
             id_paciente,
             id_especialidad,
             id_profesional,
+            id_agenda, // Asocias el turno con la agenda
             fecha,
             horario,
             estado,
@@ -154,13 +171,11 @@ exports.crearTurno = async (req, res) => {
         console.log('Redirigiendo a la agenda con:', id_profesional, id_especialidad);
         res.redirect(`/agenda/${id_profesional}/${id_especialidad}`);
 
-
     } catch (error) {
         console.error('Error al crear el turno:', error);
         res.status(500).json({ error: 'Error al crear el turno' });
     }
 };
-
 
 const { format } = require('date-fns');
 const { es } = require('date-fns/locale');
@@ -208,12 +223,19 @@ exports.mostrarAgenda = async (req, res) => {
 
         // Obtener los horarios disponibles
         const [horarios] = await conn.query(
-            `SELECT h.* 
-            FROM horarios h
-            JOIN agendas a ON h.id_agenda = a.id_agenda
-            JOIN profesionales_especialidades pe ON a.id_profesional = pe.id_profesional
-            WHERE pe.id_profesional = ? AND pe.id_especialidad = ? AND h.estado = 2`,
-            [id_profesional, id_especialidad]
+            `SELECT h.*
+FROM horarios h
+JOIN agendas a ON h.id_agenda = a.id_agenda
+JOIN profesionales_especialidades pe ON a.id_profesional = pe.id_profesional
+WHERE pe.id_profesional = ? 
+  AND pe.id_especialidad = ? 
+  AND h.estado = 2
+  AND a.id_agenda IN (
+      SELECT id_agenda 
+      FROM agendas 
+      WHERE id_profesional = ? AND id_profesional_especialidad = ?
+  );`, [id_profesional, id_especialidad, id_profesional, id_especialidad]
+
         );
 
         // Integrar turnos ocupados y horarios disponibles
@@ -281,220 +303,6 @@ exports.mostrarAgenda = async (req, res) => {
 
 
 
-
-
-/*const { format, parseISO, isValid } = require('date-fns');
-const { es } = require('date-fns/locale'); // Para español
-
-exports.mostrarAgenda = async (req, res) => {
-    try {
-        const { id_profesional, id_especialidad } = req.params;
-
-        // Obtener los datos del profesional y especialidad
-        const [profesionalData] = await conn.query('SELECT * FROM profesionales WHERE id_profesional = ?', [id_profesional]);
-        const [especialidadData] = await conn.query('SELECT * FROM especialidades WHERE id_especialidad = ?', [id_especialidad]);
-
-        if (profesionalData.length === 0 || especialidadData.length === 0) {
-            return res.status(404).json({ error: 'Profesional o especialidad no encontrados' });
-        }
-
-        // Obtener todos los turnos del profesional en esa especialidad
-        const [turnos] = await conn.query(`
-            SELECT t.*, p.nombre AS paciente_nombre, p.apellido AS paciente_apellido
-            FROM turnos t
-            LEFT JOIN pacientes p ON t.id_paciente = p.id_paciente
-            WHERE t.id_profesional = ? AND t.id_especialidad = ?
-            ORDER BY t.fecha, t.hora
-        `, [id_profesional, id_especialidad]);
-
-        // Formatear las fechas y horas de los turnos
-        turnos.forEach(turno => {
-            // Formateamos la fecha, que está en formato ISO 8601 (ej. "2023-12-04T03:00:00.000Z")
-            if (turno.fecha) {
-                try {
-                    const fecha = new Date(turno.fecha); // Convertimos a un objeto Date
-                    const fechaLocal = fecha.toLocaleDateString('es-AR', { // Formateamos la fecha a la zona horaria local
-                        weekday: 'long', // Día de la semana completo (ej. lunes)
-                        year: 'numeric',
-                        month: 'long',
-                        day: 'numeric'
-                    });
-                    turno.fecha_formateada = fechaLocal;
-                } catch (error) {
-                    console.error('Error al formatear la fecha:', error);
-                    turno.fecha_formateada = 'Fecha no válida';
-                }
-            }
-
-            // Formateamos la hora, si está en formato "HH:mm:ss" (ej. "08:00:00")
-            if (turno.hora) {
-                try {
-                    const fechaCompleta = new Date(turno.fecha); // Usamos la fecha original para obtener un objeto Date
-                    const [horas, minutos] = turno.hora.split(':'); // Descomponemos la hora
-                    fechaCompleta.setHours(horas, minutos, 0); // Establecemos la hora en el objeto Date
-
-                    turno.hora_formateada = format(fechaCompleta, 'HH:mm'); // Formateamos la hora
-                } catch (error) {
-                    console.error('Error al formatear la hora:', error);
-                    turno.hora_formateada = 'Hora no válida';
-                }
-            }
-        });
-
-        // Obtener los horarios disponibles
-        const [horarios] = await conn.query(`
-            SELECT h.*
-            FROM horarios h
-            JOIN agendas a ON h.id_agenda = a.id_agenda
-            JOIN profesionales_especialidades pe ON a.id_profesional = pe.id_profesional
-            WHERE pe.id_profesional = ? AND pe.id_especialidad = ? AND h.estado = 2
-        `, [id_profesional, id_especialidad]);
-
-        // Renderizar la vista con la agenda
-        res.render('turnos/agenda', {
-            profesional: profesionalData[0],
-            especialidad: especialidadData[0],
-            turnos,
-            horariosDisponibles: horarios
-        });
-
-    } catch (error) {
-        console.error('Error al mostrar la agenda del profesional:', error);
-        res.status(500).send('Error al cargar la agenda del profesional');
-    }
-};*/
-
-
-
-/*exports.crearTurno = async (req, res) => {
-    console.log('Controlador crearTurno iniciado');
-    const {
-        id_paciente,
-        id_especialidad,
-        id_profesional,
-        fecha,
-        horario,
-        estado,
-        motivo_consulta,
-        sobreturno,
-        id_horario
-    } = req.body;
-
-    console.log('Datos recibidos:', req.body);
-
-    // Verifica que sobreturno esté presente y tenga el valor adecuado
-    if (sobreturno === undefined) {
-        sobreturno = 0; // Si no se marca el checkbox, asumimos que no es un sobreturno
-    }
-    // Validación de campos obligatorios
-    const missingFields = [];
-    if (!id_paciente) missingFields.push('id_paciente');
-    if (!id_especialidad) missingFields.push('id_especialidad');
-    if (!id_profesional) missingFields.push('id_profesional');
-    if (!fecha) missingFields.push('fecha');
-    if (!horario) missingFields.push('horario');
-    if (!estado) missingFields.push('estado');
-
-    if (missingFields.length > 0) {
-        console.log('Error: faltan los siguientes campos:', missingFields);
-        return res.status(400).json({ error: 'Todos los campos son obligatorios', missingFields });
-    }
-
-
-    // Validación de campos obligatorios
-    if (!id_paciente || !id_especialidad || !id_profesional || !fecha || !horario || !estado) {
-        console.log('Error: todos los campos son obligatorios');
-        return res.status(400).json({ error: 'Todos los campos son obligatorios' });
-    }
-
-    // Validación de formato de fecha y hora
-    const fechaRegex = /^\d{4}-\d{2}-\d{2}$/;
-    const horaRegex = /^([01]\d|2[0-3]):([0-5]\d):([0-5]\d)$/;
-
-    // Usamos 'horario' en lugar de 'hora'
-    if (!fechaRegex.test(fecha)) {
-        console.log('Error: Formato de fecha incorrecto, debe ser YYYY-MM-DD');
-        return res.status(400).json({ error: 'Formato de fecha incorrecto, debe ser YYYY-MM-DD' });
-    }
-    if (!horaRegex.test(horario)) { // Cambié 'hora' por 'horario'
-        console.log('Error: Formato de hora incorrecto, debe ser HH:MM:SS');
-        return res.status(400).json({ error: 'Formato de hora incorrecto, debe ser HH:MM:SS' });
-    }
-
-
-    try {
-        // Insertar el nuevo turno
-        const insertQuery = `
-            INSERT INTO turnos (id_paciente, id_especialidad, id_profesional, fecha, hora, estado, motivo_consulta, sobreturno)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        `;
-
-        const [insertResult] = await conn.query(insertQuery, [
-            id_paciente,
-            id_especialidad,
-            id_profesional,
-            fecha,
-            horario,
-            estado,
-            motivo_consulta,
-            sobreturno ? 1 : 0
-        ]);
-
-        console.log('Resultado de inserción del turno:', insertResult);
-
-        // Verificar si `id_horario` existe antes de intentar el `UPDATE`
-        if (id_horario) {
-            const updateQuery = `
-                UPDATE horarios
-                SET estado = ?, disponible = 0
-                WHERE id_horarios = ?
-            `;
-            const updateValues = [estado, id_horario];
-
-            const [updateResult] = await conn.query(updateQuery, updateValues);
-
-            // Verificar si el `UPDATE` realmente afectó alguna fila
-            if (updateResult.affectedRows > 0) {
-                console.log('Horario actualizado correctamente:', updateResult);
-                res.status(201).json({ message: 'Turno creado y horario actualizado exitosamente' });
-                //res.status(201).json({ success: true, message: 'Código creado exitosamente' });
-
-            } else {
-                console.log('No se encontró el id_horario para actualizar o no se aplicó ningún cambio');
-                res.status(404).json({ error: 'No se encontró el horario para actualizar' });
-            }
-        } else {
-            res.status(201).json({ message: 'Turno creado, pero no se proporcionó id_horario para actualizar' });
-        }
-    } catch (error) {
-        console.error('Error al crear el turno:', error);
-        res.status(500).json({ error: 'Error al crear el turno' });
-    }
-};*/
-
-
-
-
-
-
-
-
-/*  sentencia SELECT
-    a.sobreturnos_maximos - COALESCE(COUNT(t.id_turno), 0) AS sobreturnos_restantes
-FROM
-    agendas a
-JOIN
-    horarios h ON a.id_agenda = h.id_agenda
-LEFT JOIN
-    turnos t ON t.id_agenda = a.id_agenda AND t.sobreturno = 1 
-              AND t.fecha = h.fecha -- Aseguramos que la fecha también coincida
-WHERE
-    h.id_agenda = 1    -- La agenda seleccionada
-    AND h.id_horarios = 1   -- El horario seleccionado
-    AND h.fecha = '2024-11-06' -- La fecha seleccionada
-GROUP BY
-    a.id_agenda;
-*/
 
 
 

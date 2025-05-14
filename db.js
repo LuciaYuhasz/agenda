@@ -1,18 +1,19 @@
-//db.js
 
-/*const mysql = require('mysql2/promise');
+const mysql = require('mysql2/promise');
 
 //const conn = mysql.createConnection({
 const conn = mysql.createPool({
-    host: 'localhost', // Cambia esto si es necesario
-    user: 'root',      // Tu usuario de MySQL
-    password: '',      // Tu contraseña de MySQL
-    database: 'agendas' // Nombre de tu base de datos
+  host: 'localhost', // Cambia esto si es necesario
+  user: 'root',      // Tu usuario de MySQL
+  password: '',      // Tu contraseña de MySQL
+  database: 'agendas' // Nombre de tu base de datos
 });
 
 console.log('Conectado a la base de datos MySQL');
-module.exports = conn;*/
+module.exports = conn;
 
+
+/*
 const mysql = require('mysql2/promise');
 
 // Crear una conexión con los datos de Clever Cloud
@@ -27,8 +28,9 @@ const conn = mysql.createPool({
     queueLimit: 0 // Sin límite de cola de conexiones
 });
 
+
 console.log('Conectado a la base de datos MySQL');
-module.exports = conn;
+module.exports = conn;*/
 
 
 
@@ -38,5 +40,5 @@ module.exports = conn;
 
 //        netstat -ano | findstr :3000
 
-//           taskkill /PID 19036 /F
+//           taskkill /PID 204044 /F
 

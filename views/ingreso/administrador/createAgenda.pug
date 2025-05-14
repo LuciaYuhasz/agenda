@@ -1,0 +1,71 @@
+extends ../../layout
+block contenido
+  h1 Crear Nueva Agenda
+
+  form(action="/create-agenda" method="POST")
+    div
+      label(for="id_profesional") Profesional:
+      select(name="id_profesional" id="id_profesional" required)
+
+        option(value="") -- Seleccione un profesional --
+        if profesionales && profesionales.length > 0
+          each profesional in profesionales
+            option(value=profesional.id_profesional) #{profesional.nombre_completo}
+        else
+          option(value="") No hay profesionales disponibles
+
+    div
+      label(for="id_profesional_especialidad") Especialidad:
+      select(name="id_profesional_especialidad" id="id_profesional_especialidad" required)
+        option(value="") -- Seleccione una especialidad --
+
+    div
+      label(for="id_sucursal") Sucursal:
+      input(type="number" name="id_sucursal" placeholder="ID Sucursal")
+
+    div
+      label(for="id_clasificacion_agenda") Clasificación de la Agenda:
+      input(type="number" name="id_clasificacion_agenda" placeholder="ID Clasificación")
+
+    div
+      label(for="sobreturnos_maximos") Sobreturnos Máximos:
+      input(type="number" name="sobreturnos_maximos" placeholder="Cantidad Máxima" required)
+
+    div
+      button(type="submit") Crear Agenda
+
+  script.
+    console.log(!{JSON.stringify(profesionales)});
+    document.addEventListener("DOMContentLoaded", () => {
+        const profesionalSelect = document.getElementById("id_profesional");
+        const especialidadSelect = document.getElementById("id_profesional_especialidad");
+
+        profesionalSelect.addEventListener("change", async () => {
+            const profesionalId = profesionalSelect.value;
+
+            // Limpiar opciones previas
+            especialidadSelect.innerHTML = '<option value="">-- Seleccione una especialidad --</option>';
+
+            if (!profesionalId) return; // Si no se selecciona profesional, no hacer nada
+
+            try {
+                const response = await fetch(`/especialidades/${profesionalId}`);
+                if (!response.ok) throw new Error("Error al obtener especialidades");
+
+                const especialidades = await response.json();
+
+                // Añadir las nuevas opciones
+                especialidades.forEach(({ id_especialidad, nombre_especialidad }) => {
+                    const option = document.createElement("option");
+                    option.value = id_especialidad;
+                    option.textContent = nombre_especialidad;
+                    especialidadSelect.appendChild(option);
+                });
+            } catch (error) {
+                console.error("Error al cargar especialidades:", error);
+                alert("Hubo un error al cargar las especialidades.");
+            }
+        });
+    });
+
+
