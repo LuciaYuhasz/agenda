@@ -1,70 +1,115 @@
 extends ../layout.pug
 
 block contenido
-    h1 Profesionales   
-    form(action="/medicos/buscar", method="GET")
-        .form-group
-            label(for="query") Buscar profesional:
-            input(type="text" name="query" id="query" class="form-control" placeholder="Buscar por nombre, apellido o especialidad" required)
-        .d-flex
-            button(type="submit" class="btn btn-primary mt-2 mr-2") Buscar
-            a(href="/medicos/crear" class="btn btn-success mt-2") Ingresar Médico
-    
-    .container
-        .row
-            each medico in medicosActivos
-                .col-md-4
-                    .card.mb-4(class=(medico.activo == 1) ? 'bg-light' : 'bg-secondary text-white')
-                        .card-body
-                            h5.card-title #{medico.nombre} #{medico.apellido}
-                            h6.card-subtitle.mb-2.text-muted ID: #{medico.id_profesional}
-                            p.card-text 
-                                | <strong>DNI:</strong> #{medico.dni}
-                                br
-                                | <strong>Sucursal:</strong> #{medico.sucursal_nombre}
-                                br
-                                | <strong>Email:</strong> #{medico.email}
-                                br
-                                | <strong>Especialidades:</strong> #{medico.especialidades}
-                                br
-                                | <strong>Matrículas:</strong> #{medico.matriculas}
-                                br
-                                | <strong>Estado:</strong> #{medico.activo == 1 ? 'Activo' : 'Inactivo'}
-                            .card-footer.d-flex.justify-content-between
-                                a(href=`/medicos/editar/${medico.id_profesional}` class="btn btn-info btn-sm") Modificar
-                                form(action=`/medicos/eliminar/${medico.id_profesional}`, method="POST" style="display:inline;")
-                                    button(type="submit" class="btn btn-danger btn-sm" onclick="return confirm('¿Estás seguro de que deseas eliminar a este médico?');") Borrar
-                                
+  h1 Profesionales
 
-                                if medico.activo == 1
-                                    form(action=`/medicos/agregar-especialidad/${medico.id_profesional}`, method="GET" style="display:inline;")
-                                        button(type="submit" class="btn btn-primary btn-sm") Agregar Especialidad
+  form(action="/medicos/buscar", method="GET")
+    .form-group
+      label(for="query") Buscar profesional:
+      input(
+        type="text"
+        name="query"
+        id="query"
+        class="form-control"
+        placeholder="Buscar por nombre, apellido o especialidad"
+        required
+      )
+    .d-flex.gap-2.mt-2
+      button(type="submit" class="btn btn-primary") Buscar
+      a(href="/medicos/crear" class="btn btn-success") Ingresar Médico
 
+  .container.mt-4
+    h2 Médicos Activos
+    .accordion(id="accordionActivos")
+      each medico, index in medicosActivos
+        .accordion-item.mb-2
+          h2.accordion-header
+            button.accordion-button.collapsed(
+              type="button"
+              data-bs-toggle="collapse"
+              data-bs-target=`#collapseActivo${index}`
+              aria-expanded="false"
+              aria-controls=`collapseActivo${index}`
+            )
+              | #{medico.nombre} #{medico.apellido}
+          .accordion-collapse.collapse(id=`collapseActivo${index}` data-bs-parent="#accordionActivos")
+            .accordion-body
+              strong ID: 
+              | #{medico.id_profesional}
+              br
+              strong DNI: 
+              | #{medico.dni}
+              br
+              strong Sucursal: 
+              | #{medico.sucursal_nombre}
+              br
+              strong Email: 
+              | #{medico.email}
+              br
+              strong Matrículas: 
+              | #{medico.matriculas}
+              br
+              strong Estado: 
+              | #{medico.activo == 1 ? 'Activo' : 'Inactivo'}
+
+              .mt-3
+                .btn-group(role="group")
+                  a(href=`/medicos/editar/${medico.id_profesional}` class="btn btn-info btn-sm") Modificar
+                  form(action=`/medicos/eliminar/${medico.id_profesional}`, method="POST", style="display:inline;")
+                    button(type="submit" class="btn btn-danger btn-sm" onclick="return confirm('¿Estás seguro de que deseas eliminar a este médico?');") Borrar
+                  form(action=`/medicos/agregar-especialidad/${medico.id_profesional}`, method="GET", style="display:inline;")
+                    button(type="submit" class="btn btn-primary btn-sm") Agregar Especialidad
+
+              if medico.especialidades.length > 0
+                ul.list-group.list-group-flush.mt-3
+                  each especialidad in medico.especialidades
+                    li.list-group-item.d-flex.justify-content-between.align-items-center
+                      span #{especialidad.nombre} - Matrícula: #{especialidad.matricula}
+                      a(href=`/agenda/${medico.id_profesional}/${especialidad.id_especialidad}` class="btn btn-warning btn-sm") Ver Agenda
+
+  .container.mt-5
     h2 Médicos Inactivos
-    .container
-        .row
-            each medico in medicosInactivos
-                .col-md-4
-                    .card.mb-4(class=(medico.activo == 1) ? 'bg-light' : 'bg-secondary text-white')
-                        .card-body
-                            h5.card-title #{medico.nombre} #{medico.apellido}
-                            h6.card-subtitle.mb-2.text-muted ID: #{medico.id_profesional}
-                            p.card-text 
-                                | <strong>DNI:</strong> #{medico.dni}
-                                br
-                                | <strong>Sucursal:</strong> #{medico.sucursal_nombre}
-                                br
-                                | <strong>Email:</strong> #{medico.email}
-                                br
-                                | <strong>Especialidades:</strong> #{medico.especialidades}
-                                br
-                                | <strong>Matrículas:</strong> #{medico.matriculas}
-                                br
-                                | <strong>Estado:</strong> #{medico.activo == 1 ? 'Activo' : 'Inactivo'}
-                            .card-footer.d-flex.justify-content-between
-                                a(href=`/medicos/editar/${medico.id_profesional}` class="btn btn-info btn-sm") Modificar
-                                 
-                                form(action=`/medicos/activar/${medico.id_profesional}`, method="POST" style="display:inline;")
-                                    button(type="submit" class="btn btn-success btn-sm") Activar
+    .accordion(id="accordionInactivos")
+      each medico, index in medicosInactivos
+        .accordion-item.mb-2
+          h2.accordion-header
+            button.accordion-button.collapsed(
+              type="button"
+              data-bs-toggle="collapse"
+              data-bs-target=`#collapseInactivo${index}`
+              aria-expanded="false"
+              aria-controls=`collapseInactivo${index}`
+            )
+              | #{medico.nombre} #{medico.apellido}
+          .accordion-collapse.collapse(id=`collapseInactivo${index}` data-bs-parent="#accordionInactivos")
+            .accordion-body
+              strong ID: 
+              | #{medico.id_profesional}
+              br
+              strong DNI: 
+              | #{medico.dni}
+              br
+              strong Sucursal: 
+              | #{medico.sucursal_nombre}
+              br
+              strong Email: 
+              | #{medico.email}
+              br
+              strong Especialidades: 
+              | #{medico.especialidades}
+              br
+              strong Matrículas: 
+              | #{medico.matriculas}
+              br
+              strong Estado: 
+              | Inactivo
+
+              .mt-3
+                .btn-group(role="group")
+                  a(href=`/medicos/editar/${medico.id_profesional}` class="btn btn-info btn-sm") Modificar
+                  form(action=`/medicos/activar/${medico.id_profesional}`, method="POST", style="display:inline;")
+                    button(type="submit" class="btn btn-success btn-sm") Activar
+
+
 
                         

@@ -1,10 +1,10 @@
 extends ../layout.pug
 
 block contenido
-  // Encabezado
-  .header
-    h1 Bienvenido a Agenda Médica
-    p Elige una opción para continuar
+  
+ .header
+  h1.text-center Bienvenido a Agenda Médica
+  p.text-center Selecciona cómo deseas reservar tu turno: Elige la opción que mejor se adapte a tu necesidad:
 
   // Contenido principal
   .container
@@ -13,29 +13,33 @@ block contenido
       .col-md-4.mb-4
         button(type="button", class="btn btn-option", onclick="toggleContainer('sucursales-container')")
           .option-card
-            img(src="https://via.placeholder.com/400x200?text=ELEGIR+POR+SUCURSAL", alt="Seleccionar sucursal")
-            h3.card-title Elegir por Sucursal
+              h3.card-title 📍 POR SUCURSAL
+              p.text-muted Encuentra turnos disponibles en la sede que prefieras.
 
       // Contenedor de las sucursales (oculto por defecto)
       .col-md-12.mt-3#sucursales-container(style="display: none;")
         .row
           .col-md-6.mb-4
-            a(href="/ingreso/pacientes/sacarTurno", class="text-decoration-none")
-              .sucursal-card
-                img(src="https://via.placeholder.com/400x200?text=SUCURSAL+CENTRO", alt="Sucursal Centro")
+            a(href="/ingreso/pacientes/sacarTurno", class="text-decoration-none text-dark")
+
+            
+              .sucursal-card.text-center
+                img(src="/imagenes/edi4.jpg", alt="SUCURSAL CENTRO", class="img-fluid rounded", style="max-width: 300px;")
+
                 h3.card-title Sucursal Centro
           .col-md-6.mb-4
-            a(href="/sucursalInterior", class="text-decoration-none")
+            a(href="/ingreso/pacientes/sacarTurno", class="text-decoration-none text-dark")
               .sucursal-card
-                img(src="https://via.placeholder.com/400x200?text=SUCURSAL+DEL+INTERIOR", alt="Sucursal del Interior")
+                img(src="/imagenes/edi2.png", alt="SUCURSAL DEL INTERIOR", class="img-fluid rounded", style="max-width: 300px;")
+
                 h3.card-title Sucursal del Interior
 
       // Opción: Elegir por Profesional
       .col-md-4.mb-4
         button(type="button", class="btn btn-option", onclick="toggleContainer('profesionales-container')")
           .option-card
-            img(src="https://via.placeholder.com/400x200?text=PROFESIONALES", alt="Seleccionar profesional")
-            h3.card-title Elegir por Profesional
+            h3.card-title 👨‍⚕️ / 👩‍⚕️ POR PROFECIONAL
+            p.text-muted Busca turnos según el especialista que deseas consultar
 
       // Contenedor para los profesionales (oculto por defecto)
       .col-md-12.mt-3#profesionales-container(style="display: none;")
@@ -51,14 +55,21 @@ block contenido
 
       // Opción: Elegir por Especialidad
       .col-md-4.mb-4
-        a(href="/especialidades", class="text-decoration-none")
+        button(type="button", class="btn btn-option", onclick="toggleContainer('buscar-especialidad-container')")
           .option-card
-            img(src="https://via.placeholder.com/400x200?text=ESPECIALIDADES", alt="Seleccionar especialidad")
-            h3.card-title Elegir por Especialidad
+            h3.card-title 🩺 POR ESPECIALIDAD
+            p.text-muted Filtra turnos según la atención médica que requieres.
+
+      // Contenedor para búsqueda de especialidad por texto (oculto por defecto)
+      .col-md-12.mt-3#buscar-especialidad-container(style="display: none;")
+        input.form-control(type="text", id="inputBuscarEspecialidad", placeholder="Buscar especialidad...")
+        ul#resultadosEspecialidad.list-group.mt-2
+
+            
 
   // Footer
   footer
-    p &copy; 2024 Agenda Médica - Todos los derechos reservados
+    p &copy; 2025 Agenda Médica 
 
   // Script para mostrar/ocultar contenedores
   script.
@@ -85,7 +96,7 @@ block contenido
       }
     }
 
-    async function cargarEspecialidades(idProfesional) {
+    /*async function cargarEspecialidades(idProfesional) {
       try {
         const response = await fetch(`/api/especialidades/${idProfesional}`);
         if (!response.ok) throw new Error('Error al obtener especialidades');
@@ -104,39 +115,87 @@ block contenido
         console.error('Error al cargar especialidades:', error);
         alert('Hubo un problema al cargar las especialidades.');
       }
-    }
+    }*/
 
     function toggleContainer(containerId) {
-      const containers = ['sucursales-container', 'profesionales-container', 'especialidad-container'];
-      containers.forEach(id => {
-        const element = document.getElementById(id);
-        if (id === containerId) {
-          element.style.display = element.style.display === 'none' ? 'block' : 'none';
-          if (id === 'profesionales-container' && element.style.display === 'block') {
-            cargarProfesionales(); // Carga los profesionales dinámicamente
-          }
-        } else {
-          element.style.display = 'none';
+        const containers = ['sucursales-container', 'profesionales-container', 'buscar-especialidad-container'];
+        const opciones = document.querySelectorAll('.btn-option'); // Captura las opciones de botón
+
+        // Oculta todos los contenedores excepto el seleccionado
+        containers.forEach(id => {
+            const element = document.getElementById(id);
+            element.style.display = (id === containerId) ? 'block' : 'none';
+        });
+
+        // Oculta todas las opciones de selección al elegir una categoría
+        opciones.forEach(btn => {
+            btn.style.display = 'none';
+        });
+
+        // Si se selecciona "Profesionales", carga datos dinámicos
+        if (containerId === 'profesionales-container') {
+            cargarProfesionales();
         }
-      });
+
     }
+
+
 
     function confirmarProfesional() {
       idProfesionalSeleccionado = document.getElementById('selectProfesionales').value;
       if (idProfesionalSeleccionado) {
-        alert(`Has seleccionado al profesional: ${idProfesionalSeleccionado}`);
-        toggleContainer('especialidad-container');
-        cargarEspecialidades(idProfesionalSeleccionado);
+         
+         window.location.href = `/ingreso/pacientes/sacarTurno?id_profesional=${idProfesionalSeleccionado}`;
       } else {
         alert('Por favor, selecciona un profesional.');
       }
     }
 
-    function confirmarEspecialidad() {
+    /*function confirmarEspecialidad() {
       const selectedEspecialidad = document.getElementById('selectEspecialidad').value;
       if (selectedEspecialidad) {
         alert(`Has seleccionado la especialidad: ${selectedEspecialidad}`);
       } else {
         alert('Por favor, selecciona una especialidad.');
       }
-    }
+    }*/
+
+    
+
+    document.addEventListener("DOMContentLoaded", () => {
+      const input = document.getElementById("inputBuscarEspecialidad");
+      const lista = document.getElementById("resultadosEspecialidad");
+
+      input.addEventListener("input", async () => {
+        const query = input.value.trim();
+
+        if (query.length < 2) {
+          lista.innerHTML = '';
+          return;
+        }
+
+        try {
+          const res = await fetch(`/buscarespecialidad?query=${encodeURIComponent(query)}`);
+          if (!res.ok) throw new Error('Error al buscar');
+
+          const especialidades = await res.json();
+          lista.innerHTML = ''; // Limpiar resultados
+
+          especialidades.forEach(e => {
+            const item = document.createElement('li');
+            item.className = 'list-group-item list-group-item-action';
+            item.textContent = e.nombre;
+            item.onclick = () => {
+            window.location.href = `/ingreso/pacientes/sacarTurno?id_especialidad=${e.id_especialidad}&nombreEspecialidad=${encodeURIComponent(e.nombre)}`;
+
+            //window.location.href = `/ingreso/pacientes/sacarTurno?id_especialidad=${e.id_especialidad}`;
+            };
+            lista.appendChild(item);
+          });
+
+        } catch (err) {
+          console.error('Error al buscar especialidades:', err);
+          lista.innerHTML = '<li class="list-group-item text-danger">Error al buscar</li>';
+        }
+      });
+    });

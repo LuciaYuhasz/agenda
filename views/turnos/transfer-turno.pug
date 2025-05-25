@@ -1,0 +1,23 @@
+extends ../layout
+
+block contenido
+  .container
+    h1.text-center Transferir Turno
+
+    form(action="/confirm-transfer" method="POST")
+      input(type="hidden" name="id_turno" value=id_turno)
+      
+      .mb-3
+        label.form-label(for="nuevo_profesional") Seleccionar nuevo profesional:
+        select.form-control(name="nuevo_profesional" required)
+          each profesional in profesionales_disponibles
+            option(value=profesional.id_profesional)= `${profesional.nombre} ${profesional.apellido}`
+
+      .mb-3
+        label.form-label(for="nuevo_horario") Seleccionar nuevo horario:
+        select.form-control(name="nuevo_horario" required)
+          each horario in horarios_disponibles
+            option(value=horario.id_horario)= `${horario.hora_inicio} - ${horario.hora_fin} (${horario.fecha})`
+
+      .d-grid
+        button.btn.btn-primary(type="submit") Confirmar transferencia

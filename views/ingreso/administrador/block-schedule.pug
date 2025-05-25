@@ -1,0 +1,61 @@
+extends ../../layout
+
+block contenido
+  head
+    title Bloquear Horarios
+    link(rel="stylesheet", href="/css/styles.css")
+
+  body.bg-light.py-5
+    .container
+      .row.justify-content-center
+        .col-md-8.col-lg-6
+          .card.shadow
+            .card-body
+              h1.text-center.mb-4.text-danger Bloquear Horarios
+
+              form(action="/create-block" method="POST")
+                input(type="hidden" name="id_agenda" value=id_agenda)
+
+                .mb-3
+                  label.form-label(for="fecha_bloqueo") Fecha a bloquear:
+                  input.form-control(type="date" name="fecha_bloqueo" required)
+
+                .mb-3
+                  label.form-label(for="hora_inicio") Hora de Inicio:
+                  input.form-control(type="time" name="hora_inicio" required)
+
+                .mb-3
+                  label.form-label(for="hora_fin") Hora de Fin:
+                  input.form-control(type="time" name="hora_fin" required)
+
+                .mb-3
+                  label.form-label(for="motivo") Motivo del bloqueo:
+                  textarea.form-control(name="motivo" rows="2")
+
+                .d-grid
+
+                  button.btn.btn-danger(type="submit") Guardar bloqueo
+
+
+
+  script.
+    let bloqueos = []; // Aquí debes cargar los días bloqueados desde la base de datos
+
+    function actualizarVista() {
+      document.getElementById("periodoActual").textContent = 
+        "Semana/Mes actual: " + inicioSemana.toLocaleDateString() + " - " + finSemana.toLocaleDateString();
+
+      document.querySelectorAll(".agenda-schedule").forEach((agenda) => {
+        const fechaAgenda = new Date(agenda.getAttribute("data-fecha"));
+
+        // Verificar si la fecha está bloqueada
+        const estaBloqueada = bloqueos.some(b => new Date(b.fecha_bloqueo).toDateString() === fechaAgenda.toDateString());
+
+        if (fechaAgenda >= inicioSemana && fechaAgenda <= finSemana && !estaBloqueada) {
+          agenda.style.display = "block";
+        } else {
+          agenda.style.display = "none";
+        }
+      });
+    }
+

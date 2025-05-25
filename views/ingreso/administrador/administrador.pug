@@ -8,32 +8,31 @@ html(lang="es")
       body {
         background-color: #fef6e4;
         font-size: 1.2rem;
-        color: #4a4e69;
+        color:rgb(105, 74, 74);
       }
       .card-container {
         text-align: center;
       }
       .card {
-        border: none;
-        background-color: #f4a261;
-        color: #ffffff;
-        border-radius: 8px;  /* Bordes redondeados */
-        width: 250px;  /* Tamaño uniforme */
-        height: 250px;  /* Ajustamos la altura para que todo encaje bien */
+
         display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        margin: 0 auto 20px;
-        padding: 20px;
+        
         transition: transform 0.3s, box-shadow 0.3s;
       }
       .card:hover {
         transform: scale(1.05);
         box-shadow: 0px 10px 30px rgba(0, 0, 0, 0.3);
       }
+      .card-description a {
+       text-decoration: none !important;
+      color: inherit; /* Mantiene el mismo color del texto */
+      }
+
       .btn-custom {
-        background-color: #264653;
+        background-color:rgb(68, 102, 116);
         border: none;
         color: #fef6e4;
         font-weight: bold;
@@ -45,7 +44,11 @@ html(lang="es")
       }
       .btn-custom:hover {
         background-color: #2a9d8f;
+       text-decoration: none !important;
       }
+
+
+
       .dropdown-menu {
         min-width: 250px;
       }
@@ -58,7 +61,7 @@ html(lang="es")
       }
       .card-footer {
         font-size: 0.9rem;
-        color: #4a4e69;
+        color:rgb(107, 108, 114);
         margin-top: 10px;
       }
 
@@ -66,14 +69,37 @@ html(lang="es")
       .card-description {
         font-size: 0.9rem;
         margin-top: 10px;
-        color: #4a4e69;
+        color:rgb(229, 229, 235);
         text-align: center;
       }
+      .row.g-5 {
+        display: flex;
+      }
+
+      .card-container {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .card {
+        flex: 1;
+        height: 100%;
+      }
+      .card img {
+        height: 250px; /* o el valor que prefieras */
+        width: auto;
+        object-fit: cover;
+      }
+
+
+
+
 
   body
     .container.my-5
       br
-      h1.text-center.mb-5 Bienvenido al Panel de Administración
+      h1.text-center.mb-5 PANEL DE ADMINISTRACION 
       br
       br
       br
@@ -82,8 +108,9 @@ html(lang="es")
         .col-md-6
           .card-container
             .card
-              a.btn-custom(href="/medicos") GESTIONAR PROFESIONALES
-              h5.card-title.mt-3 
+              img(src="/imagenes/prefesionales.avif", alt="Profesionales y Especialidades", class="img-fluid rounded", style="max-width: 300px;") 
+              a.btn-custom(href="/medicos") PROFESIONALES Y ESPECILIDADES 
+               
              
           .card-description
             br
@@ -92,10 +119,11 @@ html(lang="es")
         .col-md-6
           .card-container
             .card
-              a.btn-custom(href="/editAgenda") EDITAR/AGREGAR HORARIOS
+              img(src="/imagenes/th.jpg", alt="Profesionales y Especialidades", class="img-fluid rounded", style="max-width: 300px;") 
+              a.btn-custom(href="/editAgenda") CONFIGURAR HORARIOS
              
-              
-              a.btn-custom(href="/create-agenda") CREAR NUEVA AGENDA
+                 
+              a.btn-custom(href="/create-agenda") GENERAR NUEVA AGENDA
 
           .card-description
             

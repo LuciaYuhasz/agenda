@@ -55,52 +55,43 @@ router.get('/administrador', (req, res) => { res.render('ingreso/administrador/a
 
 // Rutas para agendas y horarios (administrador)
 
-router.get("/create-agenda", adminController.listarMedicosParacrear); // Cargar médicos y renderizar vista
+
+//rutas para formulario de generar una agenda nueva
+//router.get("/create-agenda", adminController.listarMedicosParacrear); // Cargar médicos y renderizar vista
 router.get('/especialidades/:id_profesional', adminController.getEspecialidadesPorProfesional);
 
 
-
-//router.get('/editAgenda', (req, res) => { res.render('ingreso/administrador/editAgenda'); });
 router.get("/editAgenda", adminController.listarMedicosParaFormulario);
 
 router.get('/buscar-agenda', adminController.buscarAgenda);
-router.get('/agenda', (req, res) => { res.render('ingreso/administrador/agenda'); });
-
-//router.get("/editAgenda", adminController.listarMedicosParaFormulario); // Cargar médicos y renderizar vista
-//router.get('/especialidades/:id_profesional', adminController.getEspecialidadesPorProfesional);
-
-
-// Acción para crear una agenda
-router.get("/create-agenda", (req, res) => {
-    res.render("ingreso/administrador/createAgenda"); // Asegúrate de tener la vista creada
-});
-
-router.get('/create-agenda', adminController.listarMedicosParacrear);
-
+//router.get('/agenda', (req, res) => { res.render('ingreso/administrador/agenda'); });
 
 router.get("/create-schedule", adminController.showCreateSchedule);
 router.post("/create-schedule", adminController.createScheduleBatch);
+
+
 router.get("/view-schedule", adminController.viewSchedule);
 
 
+router.get('/create-agenda', adminController.formCrearAgenda);
 router.post("/create-agenda", adminController.createAgenda);
 
-//router.post("/create-agenda", adminController.createAgenda);
-
-// Mostrar formulario para crear horario
-
-//router.post("/create-schedule", adminController.createSchedule);
 router.post("/create-schedule-batch", adminController.createScheduleBatch);
 
-// Mostrar formulario para crear horario con el ID de la agenda
-//router.get("/create-schedule", adminController.showCreateSchedule);
+
+////BLOQUEO DE HORARIOS 
+
+// Ruta para mostrar la página de bloqueo de horarios
+
+router.get("/block-schedule", (req, res) => {
+    res.render("ingreso/administrador/block-schedule", { id_agenda: req.query.id_agenda });
+});
 
 
-
-//router.get("/visualizar-agendas", adminController.viewAgendas);
-
-
-
+// Ruta para guardar un nuevo bloqueo en la base de datos
+router.post("/create-block", adminController.createBlock);
+//router.get('ingreso/administrador/agenda', adminController.getAgendasWithBlocks);
+router.get("/administrador/agenda", adminController.getAgendasWithBlocks);
 
 
 

@@ -15,6 +15,8 @@ block contenido
           th Paciente
           th Motivo
           th Estado
+          th Transferencia
+
       tbody
         each item in agenda
           tr(class= item.tipo === 'ocupado' ? 'table-danger' : 'table-success')
@@ -27,6 +29,14 @@ block contenido
                 span(style="color: red;") Ocupado
               else
                 span(style="color: green;") Disponible
+            td
+              if item.tipo === 'ocupado' 
+                a.btn-transfer(href=`/transfer-turno?id_turno=${item.id_turno}`) 🔄 Transferir turno
+                
+
+
+                
+
 
 
 

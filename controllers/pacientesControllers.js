@@ -9,9 +9,18 @@ const bcrypt = require('bcrypt');
 //===========================================================//
 
 // Mostrar formulario para registrar un nuevo paciente
-exports.mostrarFormularioCrear = (req, res) => {
+/*exports.mostrarFormularioCrear = (req, res) => {
     res.render("pacientes/crear");
-};
+};*/
+exports.mostrarFormularioCrear = (req, res) => {
+    res.render('ingreso/pacientes/sacarTurno', {
+        especialidades,
+        id_profesional: req.query.id_profesional || '',
+        id_especialidad: req.query.id_especialidad || '',
+        nombreEspecialidad: req.query.nombreEspecialidad || '',
+        nombreProfesional: req.query.nombreProfesional || '' // nuevo
+    });
+}
 // Crear un nuevo paciente
 exports.crearPaciente = async (req, res) => {
     const { nombre, apellido, dni, obra_social, telefono, email } = req.body;
@@ -180,7 +189,7 @@ exports.login = async (req, res) => {
 //===========================================================//
 
 // Mostrar formulario para que el paciente saque turno
-exports.mostrarFormularioCrear = async (req, res) => {
+/*exports.mostrarFormularioCrear = async (req, res) => {
     try {
         const [especialidades] = await conn.query('SELECT id_especialidad, nombre FROM especialidades');
         res.render('ingreso/pacientes/sacarTurno', { especialidades });
@@ -188,7 +197,38 @@ exports.mostrarFormularioCrear = async (req, res) => {
         console.error('Error al mostrar formulario de creación de turno:', error);
         res.status(500).send('Error al cargar el formulario de creación de turno');
     }
+};*/
+exports.mostrarFormularioCrear = async (req, res) => {
+    try {
+        const { id_profesional, id_especialidad } = req.query;
+
+        // Cargar todas las especialidades para el autocompletado
+        const [especialidades] = await conn.query('SELECT id_especialidad, nombre FROM especialidades');
+
+        // Podrías también cargar el nombre del profesional o especialidad si querés mostrarlo ya seleccionado
+        let nombreEspecialidad = '';
+        if (id_especialidad) {
+            const [resultado] = await conn.query('SELECT nombre FROM especialidades WHERE id_especialidad = ?', [id_especialidad]);
+            if (resultado.length > 0) {
+                nombreEspecialidad = resultado[0].nombre;
+            }
+        }
+
+        res.render('ingreso/pacientes/sacarTurno', {
+            especialidades,
+            id_profesional,
+            id_especialidad,
+            nombreEspecialidad
+        });
+    } catch (error) {
+        console.error('Error al mostrar formulario de creación de turno:', error);
+        res.status(500).send('Error al cargar el formulario de creación de turno');
+    }
 };
+
+
+
+
 // Obtener profesionales por especialidad (Sucursal 1)
 exports.obtenerProfesionales = async (req, res) => {
     const { id_especialidad } = req.params;
@@ -255,44 +295,6 @@ exports.obtenerHorarios = async (req, res) => {
     }
 };
 
-/*exports.obtenerHorarios = async (req, res) => {
-    const { idProfesional, idEspecialidad, fechaInicio } = req.params; // Obtener fechaInicio del frontend
-
-    // Calculamos la fecha de fin dependiendo de la fechaInicio
-    const fechaInicioDate = new Date(fechaInicio);
-    const fechaFinDate = new Date(fechaInicioDate);
-    fechaFinDate.setDate(fechaInicioDate.getDate() + 6); // Fin de la semana, 6 días después
-
-    try {
-        const [resultados] = await conn.query(
-            `SELECT h.id_horarios, DATE_FORMAT(h.fecha, '%Y-%m-%d') AS fecha, h.fecha, h.hora_inicio, h.hora_fin, h.estado, h.disponible
-             FROM horarios h
-             INNER JOIN agendas a ON h.id_agenda = a.id_agenda
-             WHERE a.id_profesional = ? 
-               AND a.id_profesional_especialidad = ?
-               AND h.estado = 'Libre'
-               AND h.disponible = 1
-               AND h.fecha BETWEEN ? AND ? 
-             ORDER BY h.fecha, h.hora_inicio`,
-            [idProfesional, idEspecialidad, fechaInicioDate, fechaFinDate]  // Pasamos las fechas calculadas
-        );
-
-        // Agrupación de horarios por fecha
-        const horariosAgrupados = resultados.reduce((acc, horario) => {
-            if (!acc[horario.fecha]) {
-                acc[horario.fecha] = []; // Inicializa el arreglo si no existe la fecha
-            }
-            acc[horario.fecha].push(horario); // Agrega el horario al arreglo correspondiente
-            return acc;
-        }, {});
-
-        // Respuesta JSON con los datos agrupados
-        res.status(200).json(horariosAgrupados);
-    } catch (error) {
-        console.error("Error al obtener horarios:", error);
-        res.status(500).json({ message: "Error al obtener horarios disponibles" });
-    }
-};*/
 // Procesar la reserva del turno
 exports.reservarTurno = async (req, res) => {
     console.log("Cuerpo recibido en el backend:", req.body);
@@ -425,119 +427,6 @@ exports.reservarTurno = async (req, res) => {
     }
 };
 
-/*
-
-exports.crearTurno = async (req, res) => {
-    console.log('Controlador crearTurno iniciado');
-    let {
-        id_paciente,
-        id_especialidad,
-        id_profesional,
-        fecha,
-        horario,
-        estado,
-        motivo_consulta,
-        sobreturno,
-        id_horario
-    } = req.body;
-
-    console.log('Datos recibidos:', req.body);
-
-    // Verifica que sobreturno esté presente y tenga el valor adecuado
-    if (sobreturno === undefined) {
-        sobreturno = 0; // Si no se marca el checkbox, asumimos que no es un sobreturno
-    }
-
-    // Validación de campos obligatorios
-    const missingFields = [];
-    if (!id_paciente) missingFields.push('id_paciente');
-    if (!id_especialidad) missingFields.push('id_especialidad');
-    if (!id_profesional) missingFields.push('id_profesional');
-    if (!fecha) missingFields.push('fecha');
-    if (!horario) missingFields.push('horario');
-    if (!estado) missingFields.push('estado');
-
-    if (missingFields.length > 0) {
-        console.log('Error: faltan los siguientes campos:', missingFields);
-        return res.status(400).json({ error: 'Todos los campos son obligatorios', missingFields });
-    }
-
-    // Validación de formato de fecha y hora
-    const fechaRegex = /^\d{4}-\d{2}-\d{2}$/;
-    const horaRegex = /^([01]\d|2[0-3]):([0-5]\d):([0-5]\d)$/;
-
-    if (!fechaRegex.test(fecha)) {
-        console.log('Error: Formato de fecha incorrecto, debe ser YYYY-MM-DD');
-        return res.status(400).json({ error: 'Formato de fecha incorrecto, debe ser YYYY-MM-DD' });
-    }
-    if (!horaRegex.test(horario)) {
-        console.log('Error: Formato de hora incorrecto, debe ser HH:MM:SS');
-        return res.status(400).json({ error: 'Formato de hora incorrecto, debe ser HH:MM:SS' });
-    }
-
-    try {
-        // 1. Obtener el ID de la agenda
-        const agendaQuery = `
-            SELECT id_agenda
-            FROM agendas
-            WHERE id_profesional = ? AND id_profesional_especialidad = ?
-            LIMIT 1
-        `;
-        const [agendaResult] = await conn.query(agendaQuery, [id_profesional, id_especialidad]);
-
-        if (agendaResult.length === 0) {
-            console.log('No se encontró una agenda para este profesional y especialidad');
-            return res.status(404).json({ error: 'No se encontró una agenda asociada a este profesional y especialidad' });
-        }
-
-        const id_agenda = agendaResult[0].id_agenda; // Obtener el id_agenda
-
-        // 2. Insertar el nuevo turno, ahora con el id_agenda
-        const insertQuery = `
-            INSERT INTO turnos (id_paciente, id_especialidad, id_profesional, id_agenda, fecha, hora, estado, motivo_consulta, sobreturno)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `;
-
-        const [insertResult] = await conn.query(insertQuery, [
-            id_paciente,
-            id_especialidad,
-            id_profesional,
-            id_agenda, // Asocias el turno con la agenda
-            fecha,
-            horario,
-            estado,
-            motivo_consulta,
-            sobreturno ? 1 : 0
-        ]);
-
-        console.log('Resultado de inserción del turno:', insertResult);
-
-        // Verificar si `id_horario` existe antes de intentar el `UPDATE`
-        if (id_horario) {
-            const updateQuery = `
-                UPDATE horarios
-                SET estado = ?, disponible = 0
-                WHERE id_horarios = ?
-            `;
-            const updateValues = [estado, id_horario];
-
-            const [updateResult] = await conn.query(updateQuery, updateValues);
-
-            if (updateResult.affectedRows > 0) {
-                console.log('Horario actualizado correctamente:', updateResult);
-            } else {
-                console.log('No se encontró el id_horario para actualizar o no se aplicó ningún cambio');
-            }
-        }
-
-        console.log('Redirigiendo a la agenda con:', id_profesional, id_especialidad);
-        res.redirect(`/agenda/${id_profesional}/${id_especialidad}`);
-
-    } catch (error) {
-        console.error('Error al crear el turno:', error);
-        res.status(500).json({ error: 'Error al crear el turno' });
-    }
-};*/
 
 
 

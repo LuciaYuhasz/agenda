@@ -337,21 +337,37 @@ exports.listarMedicos = async (req, res) => {
     try {
         // Consultar médicos activos
         const [medicosActivos] = await conn.execute(`
-            SELECT p.id_profesional, p.nombre, p.apellido, p.dni, p.activo, p.email, s.nombre AS sucursal_nombre,
-                   GROUP_CONCAT(e.nombre SEPARATOR ', ') AS especialidades,
-                   GROUP_CONCAT(pe.matricula SEPARATOR ', ') AS matriculas
-            FROM profesionales p
-            LEFT JOIN sucursales s ON p.id_sucursal = s.id_sucursal
-            LEFT JOIN profesionales_especialidades pe ON p.id_profesional = pe.id_profesional
-            LEFT JOIN especialidades e ON pe.id_especialidad = e.id_especialidad
-            WHERE p.activo = 1
-            GROUP BY p.id_profesional, p.nombre, p.apellido, p.dni, p.activo, p.email, s.nombre
+           SELECT p.id_profesional, p.nombre, p.apellido, p.dni, p.activo, p.email, s.nombre AS sucursal_nombre,
+       GROUP_CONCAT(CONCAT('{ "id_especialidad": "', e.id_especialidad, '", "nombre": "', e.nombre, '", "matricula": "', pe.matricula, '" }')) AS especialidades
+FROM profesionales p
+LEFT JOIN sucursales s ON p.id_sucursal = s.id_sucursal
+LEFT JOIN profesionales_especialidades pe ON p.id_profesional = pe.id_profesional
+LEFT JOIN especialidades e ON pe.id_especialidad = e.id_especialidad
+WHERE p.activo = 1
+GROUP BY p.id_profesional, p.nombre, p.apellido, p.dni, p.activo, p.email, s.nombre
+LIMIT 0, 25;
+
         `);
+        medicosActivos.forEach(medico => {
+            try {
+                if (medico.especialidades) {
+                    medico.especialidades = JSON.parse(`[${medico.especialidades}]`); // Convierte el string en array JSON
+                } else {
+                    medico.especialidades = []; // Si está vacío, asigna un array vacío
+                }
+            } catch (error) {
+                console.error("Error al convertir especialidades:", error);
+                medico.especialidades = []; // En caso de error, asigna un array vacío
+            }
+        });
+
+
+        console.log("Médicos con especialidades procesadas:", JSON.stringify(medicosActivos, null, 2));
 
         // Consultar médicos inactivos
         const [medicosInactivos] = await conn.execute(`
             SELECT p.id_profesional, p.nombre, p.apellido, p.dni, p.activo, p.email, s.nombre AS sucursal_nombre,
-                   GROUP_CONCAT(e.nombre SEPARATOR ', ') AS especialidades,
+                   GROUP_CONCAT(CONCAT('{ "id_especialidad": "', e.id_especialidad, '", "nombre": "', e.nombre, '" }')) AS especialidades,
                    GROUP_CONCAT(pe.matricula SEPARATOR ', ') AS matriculas
             FROM profesionales p
             LEFT JOIN sucursales s ON p.id_sucursal = s.id_sucursal
@@ -361,16 +377,27 @@ exports.listarMedicos = async (req, res) => {
             GROUP BY p.id_profesional, p.nombre, p.apellido, p.dni, p.activo, p.email, s.nombre
         `);
 
+        // **Transformar `especialidades` de texto a JSON válido**
+        medicosInactivos.forEach(medico => {
+            try {
+                medico.especialidades = JSON.parse(`[${medico.especialidades}]` || '[]'); // Convierte a array
+            } catch (error) {
+                medico.especialidades = []; // Si hay error, asignar array vacío
+            }
+        });
+
         // Renderizar la vista con médicos activos e inactivos
         res.render('medicos/listar', {
             medicosActivos: medicosActivos,
             medicosInactivos: medicosInactivos
         });
+
     } catch (error) {
         console.error('Error al consultar los médicos:', error);
         res.status(500).send('Error al consultar los médicos');
     }
 };
+
 // Buscar médicos por nombre, apellido o especialidad
 exports.buscarMedicos = async (req, res) => {
     const query = req.query.query; // Captura la consulta del usuario

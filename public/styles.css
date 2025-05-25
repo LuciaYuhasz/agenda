@@ -14,7 +14,7 @@
 }
 
 h1 {
-    color: #58183d;
+    color: #d8e0e7;
     /* Color azul para los encabezados que no tengo por ahora*/
     margin-bottom: 20px;
     /* Margen inferior para espacio */
@@ -32,6 +32,12 @@ tr.inactivo {
     text-decoration: line-through;
 }
 
+.card {
+    background-color: #f9f9f9;
+    /* Color de fondo claro */
+    border: 1px solid #ccc;
+    /* Borde */
+}
 
 #paciente-input {
     position: relative;
@@ -400,4 +406,13 @@ body {
     color: white;
     text-shadow: 2px 2px 10px rgba(0, 0, 0, 0.8);
     /* Más sombra para destacar */
+}
+
+a.btn-custom,
+.card-description a,
+.card-description a:visited,
+.card-description a:hover,
+.card-description a:active {
+    text-decoration: none !important;
+    color: inherit;
 }

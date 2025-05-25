@@ -1,10 +1,19 @@
 extends ../../layout
 
 block contenido
+
+  // Recibe desde el controlador
+  - const id_profesional_preseleccionado = typeof id_profesional !== 'undefined' ? id_profesional : ''
+  - const id_especialidad_preseleccionada = typeof id_especialidad !== 'undefined' ? id_especialidad : ''
+  - const nombre_especialidad_preseleccionada = typeof nombreEspecialidad !== 'undefined' ? nombreEspecialidad : ''
+  - const nombre_profesional_preseleccionado = typeof nombreProfesional !== 'undefined' ? nombreProfesional : ''
+
   .container
     h1 Reserva de Turno
    
     form(action="/sacarTurno" method="POST") 
+
+
       // Sección de especialidad
       .section-especialidad
         h3 Seleccionar Especialidad
@@ -18,21 +27,25 @@ block contenido
               placeholder="Buscar especialidad" 
               oninput="buscarEspecialidad()" 
               required
+              value=nombre_especialidad_preseleccionada
             )
-            input(type="hidden" name="id_especialidad" id="id_especialidad")
+            input(type="hidden" name="id_especialidad" id="id_especialidad" value=id_especialidad_preseleccionada)
+
+            //input(type="hidden" name="id_especialidad" id="id_especialidad")
             ul#lista_especialidades.list-group(style="display: none") 
               // Lista desplegable de especialidades
         hr
 
-      // Sección de profesional
       .section-profesional
         h3 Seleccionar Profesional
         .row
           .col-md-12
             label(for="profesional") Profesional:
             select.form-control(name="profesional" id="profesional" onchange="obtenerHorarios()" required)
-              option(value="" disabled selected) Seleccione un profesional
-            input(type="hidden" name="id_profesional" id="id_profesional")
+              if id_profesional_preseleccionado && nombre_profesional_preseleccionado
+                option(value=id_profesional_preseleccionado selected)= nombre_profesional_preseleccionado
+              option(value="" disabled)= 'Seleccione un profesional'
+            input(type="hidden" name="id_profesional" id="id_profesional" value=id_profesional_preseleccionado)
 
         hr
 
@@ -62,6 +75,8 @@ block contenido
         input.form-control(type="file" name="documento" id="documento" accept="image/*")
         //button.btn.btn-primary(type="submit") Reservar Turno
         button.btn.btn-primary(type="submit" id="btnReservar" disabled) Reservar Turno
+        
+
   // Scripts de frontend
   script.
     const especialidades = !{JSON.stringify(especialidades)};
@@ -97,7 +112,11 @@ block contenido
     async function cargarProfesionales() {
       const id_especialidad = document.getElementById('id_especialidad').value;
       const select = document.getElementById('profesional');
-      select.innerHTML = '<option value="" disabled selected>Seleccione un profesional</option>';
+      if (!document.getElementById("id_profesional").value) {
+        select.innerHTML = '<option value="" disabled selected>Seleccione un profesional</option>';
+      }
+
+      //select.innerHTML = '<option value="" disabled selected>Seleccione un profesional</option>';
       
 
       if (id_especialidad) {
@@ -227,6 +246,22 @@ block contenido
 
 
 
+      document.addEventListener("DOMContentLoaded", async () => {
+        const idEspecialidad = document.getElementById("id_especialidad").value;
+        const idProfesional = document.getElementById("id_profesional").value;
+
+        if (idEspecialidad) {
+          await cargarProfesionales(); // Carga profesionales de la especialidad
+
+          if (idProfesional) {
+            // Preselecciona automáticamente el profesional en el dropdown
+            const selectProfesional = document.getElementById("profesional");
+            selectProfesional.value = idProfesional;
+            document.getElementById("id_profesional").value = idProfesional;
+            obtenerHorarios(); // Carga horarios automáticamente
+          }
+        }
+      });
 
     
 

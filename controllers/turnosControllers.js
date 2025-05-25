@@ -240,11 +240,11 @@ WHERE pe.id_profesional = ?
 
         // Integrar turnos ocupados y horarios disponibles
         const agenda = [];
-
         // Procesar los turnos ocupados
         turnos.forEach(turno => {
-            const fechaHora = `${turno.fecha} ${turno.hora}`; // Formato: YYYY-MM-DD HH:mm
+            const fechaHora = `${turno.fecha} ${turno.hora}`;
             agenda.push({
+                id_turno: turno.id_turno, // ✅ Agregar ID del turno
                 fechaHora,
                 fecha: format(new Date(turno.fecha), 'eeee dd MMMM yyyy', { locale: es }),
                 hora: turno.hora,
@@ -257,11 +257,12 @@ WHERE pe.id_profesional = ?
 
         // Procesar los horarios disponibles
         horarios.forEach(horario => {
-            const fechaHoraInicio = `${horario.fecha} ${horario.hora_inicio}`; // Formato: YYYY-MM-DD HH:mm
-            const fechaHoraFin = `${horario.fecha} ${horario.hora_fin}`; // Formato: YYYY-MM-DD HH:mm
+            const fechaHoraInicio = `${horario.fecha} ${horario.hora_inicio}`;
+            const fechaHoraFin = `${horario.fecha} ${horario.hora_fin}`;
 
             agenda.push({
-                fechaHora: fechaHoraInicio, // Usamos solo la hora de inicio para el horario disponible
+                id_turno: null, // ✅ No tiene ID de turno porque es un horario disponible
+                fechaHora: fechaHoraInicio,
                 fecha: format(new Date(horario.fecha), 'eeee dd MMMM yyyy', { locale: es }),
                 hora: `${horario.hora_inicio} - ${horario.hora_fin}`,
                 paciente: 'Disponible',
@@ -270,6 +271,7 @@ WHERE pe.id_profesional = ?
                 tipo: 'disponible' // Horario disponible
             });
         });
+
 
         // Ordenar la agenda por fechaHora
         agenda.sort((a, b) => a.fechaHora.localeCompare(b.fechaHora)); // Ordenamos lexicográficamente
@@ -300,6 +302,163 @@ WHERE pe.id_profesional = ?
     }
 };
 
+//Funcion para transgerir turnos 
+
+exports.transferTurno = async (req, res) => {
+    try {
+        const { id_turno } = req.query;
+
+        // Obtener datos del turno actual
+        const turnoQuery = `SELECT * FROM turnos WHERE id_turno = ?`;
+        const [turnoActual] = await conn.query(turnoQuery, [id_turno]);
+
+        // 🔹 Validar que el turno existe antes de usar sus propiedades
+        if (!turnoActual || turnoActual.length === 0) {
+            console.error(`Turno con ID ${id_turno} no encontrado.`);
+            return res.status(404).send("El turno seleccionado no existe.");
+        }
+
+        // Buscar profesionales de la misma especialidad
+        const profesionalesQuery = `
+        SELECT p.* 
+        FROM profesionales p
+        JOIN profesionales_especialidades pe ON p.id_profesional = pe.id_profesional
+        WHERE pe.id_especialidad = ? AND p.id_profesional != ?;
+      `;
+
+        const [profesionalesDisponibles] = await conn.query(profesionalesQuery, [
+            turnoActual[0].id_especialidad,
+            turnoActual[0].id_profesional
+        ]);
+
+
+
+        // Buscar horarios disponibles del nuevo profesional
+        const horariosQuery = `
+  SELECT h.* 
+  FROM horarios h
+  JOIN agendas a ON h.id_agenda = a.id_agenda
+  JOIN profesionales_especialidades pe ON a.id_profesional = pe.id_profesional
+  WHERE pe.id_especialidad = ? 
+  AND h.fecha = ? 
+  AND h.estado = 'Libre'
+  ORDER BY h.hora_inicio;
+`;
+
+        const [horariosDisponibles] = await conn.query(horariosQuery, [
+            turnoActual[0].id_especialidad, // ✅ Asegurar que se está obteniendo correctamente
+            turnoActual[0].fecha
+        ]);
+        res.render('turnos/transfer-turno', {
+
+            //res.render("transfer-turno", {
+            id_turno,
+            profesionales_disponibles: profesionalesDisponibles,
+            horarios_disponibles: horariosDisponibles
+        });
+    } catch (error) {
+        console.error("Error al buscar turno para transferencia:", error);
+        res.status(500).send("Hubo un error al transferir el turno.");
+    }
+};
+
+
+
+exports.confirmTransfer = async (req, res) => {
+    try {
+        const { id_turno, nuevo_profesional } = req.body;
+
+        // 🔹 Obtener datos del turno original
+        const turnoQuery = `
+            SELECT id_profesional, id_agenda, fecha, hora 
+            FROM turnos 
+            WHERE id_turno = ?;
+        `;
+        const [turnoActual] = await conn.query(turnoQuery, [id_turno]);
+
+        if (!turnoActual.length) {
+            console.error("Turno no encontrado.");
+            return res.status(404).send("El turno seleccionado no existe.");
+        }
+
+        const { id_profesional: profesionalActual, id_agenda: agendaActual, fecha, hora } = turnoActual[0];
+
+        // 🔹 Liberar el horario del profesional original
+        const liberarHorarioQuery = `
+            UPDATE horarios 
+            SET estado = 'Libre', disponible = 1 
+            WHERE fecha = ? AND hora_inicio = ? AND id_agenda = ?;
+        `;
+        await conn.query(liberarHorarioQuery, [fecha, hora, agendaActual]);
+
+        // 🔹 Obtener la nueva agenda del profesional al que se transfiere el turno
+        const nuevaAgendaQuery = `
+            SELECT id_agenda FROM agendas 
+            WHERE id_profesional = ? 
+            LIMIT 1;
+        `;
+        const [nuevaAgenda] = await conn.query(nuevaAgendaQuery, [nuevo_profesional]);
+
+        if (!nuevaAgenda.length) {
+            console.error("La nueva agenda del profesional no existe.");
+            return res.status(404).send("El nuevo profesional no tiene una agenda configurada.");
+        }
+
+        const nuevaAgendaId = nuevaAgenda[0].id_agenda;
+
+        // 🔹 Verificar disponibilidad del nuevo profesional en el mismo horario
+        const verificarDisponibilidadQuery = `
+            SELECT id_horarios FROM horarios 
+            WHERE fecha = ? AND hora_inicio = ? AND id_agenda = ? AND estado = 'Libre' 
+            LIMIT 1;
+        `;
+        const [nuevoHorario] = await conn.query(verificarDisponibilidadQuery, [fecha, hora, nuevaAgendaId]);
+
+        let fechaTurno = fecha;
+        let horaTurno = hora;
+
+        if (!nuevoHorario.length) {
+            // 🔹 Buscar un horario cercano si el mismo horario no está disponible
+            const buscarHorarioCercanoQuery = `
+                SELECT id_horarios, fecha, hora_inicio FROM horarios 
+                WHERE fecha = ? AND id_agenda = ? AND estado = 'Libre' 
+                ORDER BY hora_inicio ASC LIMIT 1;
+            `;
+            const [horarioCercano] = await conn.query(buscarHorarioCercanoQuery, [fecha, nuevaAgendaId]);
+
+            if (!horarioCercano.length) {
+                console.error("No hay horarios disponibles para la transferencia.");
+                return res.status(400).send("No hay horarios disponibles para el nuevo profesional.");
+            }
+
+            fechaTurno = horarioCercano[0].fecha;
+            horaTurno = horarioCercano[0].hora_inicio;
+        }
+
+        // 🔹 Transferir el turno al nuevo profesional y agenda
+        const actualizarTurnoQuery = `
+            UPDATE turnos 
+            SET id_profesional = ?, id_agenda = ?, fecha = ?, hora = ?, estado = 'Confirmado' 
+            WHERE id_turno = ?;
+        `;
+        await conn.query(actualizarTurnoQuery, [nuevo_profesional, nuevaAgendaId, fechaTurno, horaTurno, id_turno]);
+
+        // 🔹 Reservar el nuevo horario en la agenda del profesional receptor
+        const reservarHorarioQuery = `
+            UPDATE horarios 
+            SET estado = 'Reservada', disponible = 0 
+            WHERE fecha = ? AND hora_inicio = ? AND id_agenda = ?;
+        `;
+        await conn.query(reservarHorarioQuery, [fechaTurno, horaTurno, nuevaAgendaId]);
+
+        console.log(`Turno ${id_turno} transferido de ${profesionalActual} a ${nuevo_profesional}.`);
+        res.redirect("/agenda");
+
+    } catch (error) {
+        console.error("Error al confirmar transferencia:", error);
+        res.status(500).send("Hubo un error al transferir el turno.");
+    }
+};
 
 
 

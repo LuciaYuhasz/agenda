@@ -1,145 +1,184 @@
-// ingreso/administrador/agenda.pug
-// ingreso/administrador/agenda.pug
+extends ../../layout.pug
+
 block contenido
-  h1.page-title Resultados de la Búsqueda de Agendas
+  .container
 
-  if agendas && agendas.length > 0
-    each agenda in agendas
-      div.agenda-card
-        h2.agenda-title= `Agenda: ${agenda.profesional_nombre} ${agenda.profesional_apellido} - ${agenda.especialidad_nombre}`
-        p.agenda-info
-          | <strong>Sucursal:</strong> #{agenda.sucursal_nombre}
-          br
-          | <strong>Sobreturnos Máximos:</strong> #{agenda.sobreturnos_maximos}
+    h1.page-title  Administracion
+    div.current-period
+      h2#periodoActual Semana/Mes actual: 
+    // Botones para cambiar semana y mes
+    div.navigation-buttons
+      button#btnSemanaAnterior.btn-primary(onclick="cambiarSemana(-7)") ⬅ Semana Anterior
+      button#btnSemanaSiguiente.btn-primary(onclick="cambiarSemana(7)") Semana Siguiente ➡
+      button#btnMesAnterior.btn-secondary(onclick="cambiarMes(-1)") ⬅ Mes Anterior
+      button#btnMesSiguiente.btn-secondary(onclick="cambiarMes(1)") Mes Siguiente ➡
+  
+      if agendas && agendas.length > 0
+        each agenda in agendas
+          div.agenda-card
+            h1.page-title= `Agenda: ${agenda.profesional_nombre} ${agenda.profesional_apellido} - ${agenda.especialidad_nombre}`
+            p.agenda-info
+              | <strong>Sucursal:</strong> #{agenda.sucursal_nombre}
+              br
+              | <strong>Sobreturnos Máximos:</strong> #{agenda.sobreturnos_maximos}
 
-        // Acciones
-        div.agenda-actions
-        
+            // Acciones
+            div.agenda-actions
+              a.btn-submit(href=`/create-schedule?id_agenda=${agenda.id_agenda}`) CARGAR NUEVOS HORARIOS
+              a.btn-danger(href=`/block-schedule?id_agenda=${agenda.id_agenda}`) 🚫 BLOQUEAR HORARIOS
 
-        
-          a.btn-submit(href=`/create-schedule?id_agenda=${agenda.id_agenda}`) Cargar más horarios
+            table.schedule-table
+              thead
+                tr
+                  th Fecha
+                  th Hora Inicio
+                  th Hora Fin
+                  th Estado
 
-          a.btn-primary(href=`/edit-agenda/${agenda.id_agenda}`) Editar
-          a.btn-secondary(href=`/view-agenda/${agenda.id_agenda}`) Ver
-
-        if agenda.horarios && Object.keys(agenda.horarios).length > 0
-          each fecha in Object.keys(agenda.horarios)
-            div.agenda-schedule
-              h3.schedule-date= `Fecha: ${new Date(fecha).toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`
-
-              table.schedule-table
-                thead
+              tbody
+                if agenda.eventos && Object.keys(agenda.eventos).length > 0
+                  each fecha in Object.keys(agenda.eventos)
+                    - let firstRow = true
+                    each evento in agenda.eventos[fecha]
+                      tr(class= evento.estado === 'Bloqueado' ? 'text-danger' : '', data-fecha=fecha)
+                        if firstRow
+                          td(rowspan=agenda.eventos[fecha].length)= new Date(fecha).toLocaleDateString('es-AR')
+                          - firstRow = false
+                        
+                        td= evento.hora_inicio
+                        td= evento.hora_fin
+                        td= evento.estado === 'Bloqueado' ? "Bloqueado: " + evento.motivo : evento.estado
+                else
                   tr
-                    th Hora Inicio
-                    th Hora Fin
-                    th Estado
-                tbody
-                  each horario in agenda.horarios[fecha]
-                    tr
-                      td= horario.hora_inicio
-                      td= horario.hora_fin
-                      td= horario.estado
+                    td(colspan="4").text-muted No hay horarios disponibles
 
-              // Botón para cargar más horarios en esta agenda
-              
-              form.schedule-form(action=`/create-schedule?id_agenda=${agenda.id_agenda}&fecha_inicio=${fecha_inicio}&fecha_fin=${fecha_fin}` method="POST")
-                input(type="hidden" name="id_agenda" value=agenda.id_agenda)
-                input(type="hidden" name="fecha_inicio" value=agenda.fecha_inicio) 
-                input(type="hidden" name="fecha_fin" value=agenda.fecha_fin)       
-                button.btn-submit(type="submit") Cargar más horarios
 
-              
-                
 
-        else
-          p.no-schedules No hay horarios disponibles para esta agenda.
+      else
+        p.no-results No se encontraron agendas que coincidan con los criterios.
 
-  else
-    p.no-results No se encontraron agendas que coincidan con los criterios.
 
-  a.btn-back(href="/") Volver al inicio
+    a.btn-back(href="/") Volver al inicio
 
-// Bloque de CSS dentro del archivo Pug
-block styles
-  style.
-    .page-title {
-      text-align: center;
-      font-size: 2rem;
-      margin-bottom: 20px;
-    }
+  block scripts
+    script.
+      console.log("Bloqueos de la agenda:", !{JSON.stringify(agendas.bloqueos)});
+      let inicioSemana = new Date();
+      let finSemana = new Date();
+      finSemana.setDate(inicioSemana.getDate() + 6);
 
-    .agenda-card {
-      border: 1px solid #ccc;
-      border-radius: 8px;
-      margin: 20px 0;
-      padding: 15px;
-      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-    }
+      function cambiarSemana(dias) {
+        inicioSemana.setDate(inicioSemana.getDate() + dias);
+        finSemana.setDate(finSemana.getDate() + dias);
+        actualizarVista();
+      }
 
-    .agenda-title {
-      font-size: 1.5rem;
-      margin-bottom: 10px;
-    }
+      function cambiarMes(meses) {
+        inicioSemana.setMonth(inicioSemana.getMonth() + meses);
+        finSemana.setMonth(finSemana.getMonth() + meses);
+        actualizarVista();
+      }
 
-    .agenda-info {
-      font-size: 1rem;
-      line-height: 1.5;
-      margin-bottom: 15px;
-    }
+      
+      function actualizarVista() {
+        console.log(`Nueva semana: ${inicioSemana.toLocaleDateString()} - ${finSemana.toLocaleDateString()}`);
+        // Actualizar el marcador con el periodo actual
+        document.getElementById("periodoActual").textContent = 
+         `Semana/Mes actual: ${inicioSemana.toLocaleDateString()} - ${finSemana.toLocaleDateString()}`;
 
-    .agenda-actions {
-      margin-bottom: 15px;
-    }
+        // Filtrar y mostrar solo las agendas dentro del rango de fechas
+        document.querySelectorAll("tbody tr").forEach((agenda) => {
+          const fechaAgenda = new Date(agenda.getAttribute("data-fecha")); // Asegúrate de asignar `data-fecha` en tu Pug
+          if (fechaAgenda >= inicioSemana && fechaAgenda <= finSemana) {
+            agenda.style.display = "table-row"; // Mostrar si está en el rango
+          } else {
+            agenda.style.display = "none"; // Ocultar si no está en el rango
+          }
+        });
+      }
 
-    .agenda-actions a {
-      margin-right: 10px;
-    }
 
-    .btn-primary {
-      color: white;
-      background-color: #007bff;
-      padding: 8px 12px;
-      text-decoration: none;
-      border-radius: 4px;
-    }
+  // Bloque de CSS dentro del archivo Pug
+  block styles
+      style.
+        .page-title {
+          text-align: center;
+          font-size: 2rem;
+          margin-bottom: 20px;
+        }
 
-    .btn-secondary {
-      color: white;
-      background-color: #6c757d;
-      padding: 8px 12px;
-      text-decoration: none;
-      border-radius: 4px;
-    }
+        .agenda-card {
+          border: 1px solid #ccc;
+          border-radius: 8px;
+          margin: 20px 0;
+          padding: 15px;
+          box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
 
-    .schedule-table {
-      width: 100%;
-      border-collapse: collapse;
-      margin: 15px 0;
-    }
+        .agenda-title {
+          font-size: 1.5rem;
+          margin-bottom: 10px;
+        }
 
-    .schedule-table th, .schedule-table td {
-      border: 1px solid #ddd;
-      padding: 10px;
-      text-align: left;
-    }
+        .agenda-info {
+          font-size: 1rem;
+          line-height: 1.5;
+          margin-bottom: 15px;
+        }
 
-    .schedule-table th {
-      background-color: #f8f9fa;
-    }
+        .agenda-actions {
+          margin-bottom: 15px;
+        }
 
-    .no-schedules, .no-results {
-      font-size: 1.2rem;
-      color: #888;
-      text-align: center;
-      margin-top: 20px;
-    }
+        .agenda-actions a {
+          margin-right: 10px;
+        }
 
-    .btn-back {
-      display: inline-block;
-      margin-top: 20px;
-      color: white;
-      background-color: #28a745;
-      padding: 10px 15px;
-      text-decoration: none;
-      border-radius: 4px;
-    }
+        .btn-primary {
+          color: white;
+          background-color: #007bff;
+          padding: 8px 12px;
+          text-decoration: none;
+          border-radius: 4px;
+        }
+
+        .btn-secondary {
+          color: white;
+          background-color: #6c757d;
+          padding: 8px 12px;
+          text-decoration: none;
+          border-radius: 4px;
+        }
+
+        .schedule-table {
+          width: 100%;
+          border-collapse: collapse;
+          margin: 15px 0;
+        }
+
+        .schedule-table th, .schedule-table td {
+          border: 1px solid #ddd;
+          padding: 10px;
+          text-align: left;
+        }
+
+        .schedule-table th {
+          background-color: #f8f9fa;
+        }
+
+        .no-schedules, .no-results {
+          font-size: 1.2rem;
+          color: #888;
+          text-align: center;
+          margin-top: 20px;
+        }
+
+        .btn-back {
+          display: inline-block;
+          margin-top: 20px;
+          color: white;
+          background-color: #28a745;
+          padding: 10px 15px;
+          text-decoration: none;
+          border-radius: 4px;
+        }

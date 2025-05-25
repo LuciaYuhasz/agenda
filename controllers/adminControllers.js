@@ -62,7 +62,68 @@ exports.loginAdmin = async (req, res) => {
 //===========================================================//
 //AGENDAS CRUD BASICO
 //===========================================================//
+
 exports.buscarAgenda = async (req, res) => {
+    const { id_profesional, id_especialidad } = req.query;
+
+    try {
+        const agendaQuery = `
+          SELECT 
+            a.id_agenda, a.id_profesional, a.id_profesional_especialidad,
+            p.nombre AS profesional_nombre, p.apellido AS profesional_apellido,
+            e.nombre AS especialidad_nombre, s.nombre AS sucursal_nombre,
+            a.sobreturnos_maximos
+          FROM agendas a
+          JOIN profesionales p ON a.id_profesional = p.id_profesional
+          JOIN especialidades e ON a.id_profesional_especialidad = e.id_especialidad
+          JOIN sucursales s ON a.id_sucursal = s.id_sucursal
+          WHERE a.id_profesional = ? AND a.id_profesional_especialidad = ?;
+        `;
+
+        const params = [id_profesional, id_especialidad];
+        const [agendas] = await conn.query(agendaQuery, params);
+
+        for (let agenda of agendas) {
+            // Obtener horarios normales
+            const horariosQuery = `
+              SELECT fecha, hora_inicio, hora_fin, estado 
+              FROM horarios 
+              WHERE id_agenda = ? 
+              ORDER BY fecha, hora_inicio;
+            `;
+            const [horarios] = await conn.query(horariosQuery, [agenda.id_agenda]);
+
+            // Obtener bloqueos de horarios
+            const bloqueosQuery = `
+              SELECT fecha_bloqueo AS fecha, hora_inicio, hora_fin, 'Bloqueado' AS estado, motivo
+              FROM bloqueos_horarios 
+              WHERE id_agenda = ?;
+            `;
+            const [bloqueos] = await conn.query(bloqueosQuery, [agenda.id_agenda]);
+
+            // Combinar horarios y bloqueos en una única estructura ordenada
+            const eventos = [...horarios, ...bloqueos].sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
+
+            // Agrupar por fecha
+            agenda.eventos = eventos.reduce((acc, evento) => {
+                const fecha = evento.fecha;
+                if (!acc[fecha]) acc[fecha] = [];
+                acc[fecha].push(evento);
+                return acc;
+            }, {});
+        }
+
+        console.log("Agendas con horarios y bloqueos combinados:", JSON.stringify(agendas, null, 2));
+        res.render("ingreso/administrador/agenda", { agendas });
+
+    } catch (error) {
+        console.error("Error al buscar agendas:", error);
+        res.status(500).send("Hubo un error al buscar agendas.");
+    }
+};
+
+
+/*exports.buscarAgenda = async (req, res) => {
     const { id_profesional, id_especialidad } = req.query;
 
     try {
@@ -109,7 +170,7 @@ exports.buscarAgenda = async (req, res) => {
         console.error('Error al buscar agendas:', error);
         res.status(500).send('Hubo un error al buscar agendas.');
     }
-};
+};*/
 exports.createAgenda = async (req, res) => {
     console.log("Solicitud recibida en createAgenda", req.body);
     const {
@@ -306,6 +367,7 @@ exports.showCreateSchedule = async (req, res) => {
     // Renderiza la vista pasando el id_agenda
     res.render("ingreso/administrador/crearHorario", { id_agenda });
 };
+//FIJARME PARA QUE ES ESTE METODO
 exports.listarMedicosParaFormulario = async (req, res) => {
     try {
         const [result] = await conn.execute(`
@@ -320,7 +382,7 @@ exports.listarMedicosParaFormulario = async (req, res) => {
             GROUP BY p.id_profesional, p.nombre, p.apellido
         `);
 
-        console.log('Resultado de la consulta:', result);
+        console.log('Resultado de la consulta LISTAR MEDICOS PARA FORMULARIOS :', result);
         //res.render('ingreso/administrador/createAgenda', { profesionales: result });
         res.render('ingreso/administrador/editAgenda', { profesionales: result });
 
@@ -329,6 +391,7 @@ exports.listarMedicosParaFormulario = async (req, res) => {
         res.status(500).send('Error al consultar los médicos');
     }
 };
+//FIJARME PARA QUE ES ESTE METODO
 exports.listarMedicosParacrear = async (req, res) => {
     try {
         const [result] = await conn.execute(`
@@ -343,7 +406,7 @@ exports.listarMedicosParacrear = async (req, res) => {
             GROUP BY p.id_profesional, p.nombre, p.apellido
         `);
 
-        console.log('Resultado de la consulta:', result);
+        console.log('Resultado de la consulta LISTARMEDICOSPARACREAE:', result);
         //res.render('ingreso/administrador/createAgenda', { profesionales: result });
         res.render('ingreso/administrador/createAgenda', { profesionales: result });
 
@@ -352,6 +415,7 @@ exports.listarMedicosParacrear = async (req, res) => {
         res.status(500).send('Error al consultar los médicos');
     }
 };
+//este metodo es usado para la creacion de la agenda
 exports.getEspecialidadesPorProfesional = async (req, res) => {
     const { id_profesional } = req.params;
 
@@ -362,10 +426,82 @@ exports.getEspecialidadesPorProfesional = async (req, res) => {
             JOIN especialidades e ON pe.id_especialidad = e.id_especialidad
             WHERE pe.id_profesional = ?
         `, [id_profesional]);
-
+        console.log('Resultado de la consulta GETESPECILIDADESPORPROFESIONAL:', result);
         res.json(result); // Devuelve las especialidades en formato JSON
     } catch (error) {
         console.error("Error al consultar especialidades:", error);
         res.status(500).send("Error al consultar especialidades.");
     }
 };
+//METODO PARA MOSTRAR FORMULARIO DE CREACION DE AGENDA NUEVA 
+exports.formCrearAgenda = async (req, res) => {
+    try {
+        console.log("Entró a formCrearAgenda");
+        const [profesionales] = await conn.query(`
+        SELECT id_profesional, CONCAT(nombre, ' ', apellido) AS nombre_completo 
+        FROM profesionales 
+        WHERE activo = 1
+      `);
+
+        const [sucursales] = await conn.query(`
+        SELECT id_sucursal, nombre 
+        FROM sucursales
+      `);
+        console.log("Sucursales desde el controlador:", sucursales);
+        //res.render('ingreso/administrador/create-agenda', {
+        res.render('ingreso/administrador/createAgenda', {
+
+            profesionales,
+            sucursales
+        });
+
+
+    } catch (error) {
+        console.error("Error al cargar formulario de agenda:", error);
+        res.status(500).send("Error al cargar datos del formulario.");
+    }
+};
+
+//Medodo para port de horarios bloquedos 
+exports.createBlock = async (req, res) => {
+    const { id_agenda, fecha_bloqueo, hora_inicio, hora_fin, motivo } = req.body;
+
+    try {
+        const query = `
+            INSERT INTO bloqueos_horarios (id_agenda, fecha_bloqueo, hora_inicio, hora_fin, motivo) 
+            VALUES (?, ?, ?, ?, ?)
+        `;
+        await conn.query(query, [id_agenda, fecha_bloqueo, hora_inicio, hora_fin, motivo]);
+
+        console.log("Bloqueo registrado correctamente");
+        res.redirect("/administrador"); // Redirige al panel de administrador después del bloqueo
+    } catch (error) {
+        console.error("Error al bloquear horario:", error);
+        res.status(500).send("Hubo un error al bloquear el horario.");
+    }
+};
+//funcion ara cargar agenda con horartios bloqueados
+exports.getAgendasWithBlocks = async (req, res) => {
+    try {
+        console.log("Ejecutando getAgendasWithBlocks...");
+        const queryAgendas = `SELECT * FROM agendas`;
+        const [agendas] = await conn.query(queryAgendas);
+
+        const queryBloqueos = `SELECT * FROM bloqueos_horarios`;
+        const [bloqueos] = await conn.query(queryBloqueos);
+
+        // Organizar bloqueos dentro de cada agenda
+        agendas.forEach(agenda => {
+            agenda.bloqueos = bloqueos.filter(b => b.id_agenda === agenda.id_agenda);
+        });
+        console.log("Agendas cargadas:", agendas);
+        console.log("Bloqueos cargados:", bloqueos);
+
+        res.render("ingreso/administrador/agenda", { agendas });
+        //res.render("agenda", { agendas });
+    } catch (error) {
+        console.error("Error al cargar agendas y bloqueos:", error);
+        res.status(500).send("Hubo un error al cargar las agendas.");
+    }
+};
+

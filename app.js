@@ -62,11 +62,6 @@ app.get('/', (req, res) => {
 });
 
 
-/*app.get('/', (req, res) => {
-    res.render('sucursales/sucursales');
-});
-*/
-
 
 
 // Usar las rutas de médicos
