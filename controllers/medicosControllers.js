@@ -3,29 +3,45 @@ const conn = require('../db'); // Importa la conexión a la base de datos
 //===========================================================//
 // FORMULARIOS 
 //===========================================================//
-// Mostrar formulario para registrar un médico
-exports.mostrarFormularioCrear = (req, res) => {
-    res.render("medicos/crear");
+// Mostrar formulario para registrar un médico con datos dinámicos
+exports.mostrarFormularioCrear = async (req, res) => {
+    try {
+        // Obtener especialidades y sucursales desde la base de datos
+        const [especialidades] = await conn.query('SELECT id_especialidad, nombre FROM especialidades');
+        const [sucursales] = await conn.query('SELECT id_sucursal, nombre FROM sucursales');
+
+        // Renderizar la vista y pasar los datos
+        res.render("medicos/crear", { especialidades, sucursales });
+    } catch (error) {
+        console.error("Error al obtener datos:", error);
+        res.status(500).send("Error al cargar el formulario");
+    }
 };
 // Mostrar formulario para modificar un médico
 exports.mostrarFormularioModificar = async (req, res) => {
     const idProfesional = req.params.id;
 
     try {
+        // Obtener datos del médico
         const [results] = await conn.execute(
-            'SELECT * FROM profesionales WHERE id_profesional = ?',
+            'SELECT profesionales.*, sucursales.nombre AS sucursal_nombre FROM profesionales JOIN sucursales ON profesionales.id_sucursal = sucursales.id_sucursal WHERE id_profesional = ?',
             [idProfesional]
         );
 
         if (results.length === 0) {
             return res.status(404).send('Médico no encontrado');
         }
-        res.render('medicos/modificar', { medico: results[0] });
+
+        // Obtener todas las sucursales para el select
+        const [sucursales] = await conn.query('SELECT id_sucursal, nombre FROM sucursales');
+
+        res.render('medicos/modificar', { medico: results[0], sucursales });
     } catch (error) {
         console.error('Error al obtener el médico:', error);
         return res.status(500).send('Error al obtener el médico');
     }
 };
+
 // Mostrar el formulario para agregar especialidad a un médico
 exports.mostrarFormularioAgregarEspecialidad = async (req, res) => {
     const idProfesional = req.params.id;  // Obtienes el ID del profesional desde la URL
@@ -173,6 +189,7 @@ exports.modificarMedico = async (req, res) => {
         res.status(500).send('Error al modificar el médico');
     }
 };
+
 // Listar todos los médicos
 exports.listarMedicos = async (req, res) => {
     try {
@@ -403,29 +420,69 @@ exports.buscarMedicos = async (req, res) => {
     const query = req.query.query; // Captura la consulta del usuario
 
     try {
-        // Realiza la consulta para buscar médicos que coincidan con el nombre, apellido o especialidad
-        const [resultados] = await conn.execute(`
+        console.log("Consulta ingresada por el usuario:", query); // Debug
+
+        const [filas] = await conn.execute(`
             SELECT p.id_profesional, p.nombre, p.apellido, p.dni, p.activo, p.email, s.nombre AS sucursal_nombre,
-                   GROUP_CONCAT(e.nombre SEPARATOR ', ') AS especialidades,
-                   GROUP_CONCAT(pe.matricula SEPARATOR ', ') AS matriculas
+                   e.id_especialidad, e.nombre AS especialidad_nombre, pe.matricula
             FROM profesionales p
             LEFT JOIN sucursales s ON p.id_sucursal = s.id_sucursal
             LEFT JOIN profesionales_especialidades pe ON p.id_profesional = pe.id_profesional
             LEFT JOIN especialidades e ON pe.id_especialidad = e.id_especialidad
             WHERE p.nombre LIKE ? OR p.apellido LIKE ? OR e.nombre LIKE ?
-            GROUP BY p.id_profesional, p.nombre, p.apellido, p.dni, p.activo, p.email, s.nombre
         `, [`%${query}%`, `%${query}%`, `%${query}%`]);
 
+        // Agrupar resultados por profesional
+        const resultados = [];
+
+        for (const fila of filas) {
+            let medico = resultados.find(m => m.id_profesional === fila.id_profesional);
+
+            if (!medico) {
+                medico = {
+                    id_profesional: fila.id_profesional,
+                    nombre: fila.nombre,
+                    apellido: fila.apellido,
+                    dni: fila.dni,
+                    email: fila.email,
+                    activo: fila.activo,
+                    sucursal_nombre: fila.sucursal_nombre,
+                    especialidades: [],
+                    matriculas: []
+                };
+                resultados.push(medico);
+            }
+
+            if (fila.id_especialidad) {
+                medico.especialidades.push({
+                    id_especialidad: fila.id_especialidad,
+                    nombre: fila.especialidad_nombre,
+                    matricula: fila.matricula
+                });
+
+                // Evitar duplicados de matrícula
+                if (!medico.matriculas.includes(fila.matricula)) {
+                    medico.matriculas.push(fila.matricula);
+                }
+            }
+        }
+
+        console.log("Resultados formateados:", JSON.stringify(resultados, null, 2));
+
+        if (resultados.length === 0) {
+            return res.json({ error: "Profesional o especialidad no encontrados" });
+        }
+
+        // Renderizar vista con resultados filtrados
         res.render('medicos/listar', {
             medicosActivos: resultados.filter(m => m.activo == 1),
             medicosInactivos: resultados.filter(m => m.activo == 0)
         });
+
     } catch (error) {
         console.error('Error al buscar médicos:', error);
         res.status(500).send('Error al buscar médicos');
     }
 };
-
-
 
 

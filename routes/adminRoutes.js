@@ -9,7 +9,9 @@ const upload = require('../multerConfig'); // Configuración de multer
 
 //                              P A C I E N T E S
 // Rutas para autenticación de pacientes
-router.get("/register", (req, res) => res.render("ingreso/pacientes/register")); // Vista de registro
+// Ruta para renderizar el formulario de registro de pacientes
+router.get('/register', authController.renderRegisterForm);
+//router.get("/register", (req, res) => res.render("ingreso/pacientes/register")); // Vista de registro
 router.post(
     "/register",
     upload.single("foto_dni"), // Middleware de multer
@@ -42,6 +44,48 @@ router.post("/login", authController.login); // Acción de login
 router.get('/sucursales/sucursales', (req, res) => {
     res.render('sucursales/sucursales');
 });
+//                             SECRETARIOS
+
+
+// Mostrar el formulario de login para secretarios
+router.get("/secretarios/login", (req, res) => res.render("ingreso/secretarios/login"));
+
+// Procesar login de secretarios
+router.post("/secretarios/login", authController.login);
+
+// Mostrar el formulario de registro para secretarios
+router.get("/secretarios/register", (req, res) => res.render("ingreso/secretarios/register"));
+
+// Procesar el formulario de registro para secretarios
+router.post(
+    "/secretarios/register",
+    upload.single("foto_dni"),
+    async (req, res, next) => {
+        try {
+            if (!req.file) {
+                return res.status(400).send("Error: No se subió ningún archivo.");
+            }
+            console.log(`Archivo subido correctamente: ${req.file.filename}`);
+            next();
+        } catch (error) {
+            return res.status(500).send(`Error al subir el archivo: ${error.message}`);
+        }
+    },
+    authController.register
+);
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 //                                       A D M I N I S T R A D O R 
 // Rutas para autenticación de administradores

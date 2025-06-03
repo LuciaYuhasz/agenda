@@ -13,7 +13,8 @@ block contenido
    
     form(action="/sacarTurno" method="POST") 
 
-
+      // Campo oculto para la sucursal seleccionada
+      input(type="hidden" name="id_sucursal" id="id_sucursal" value=id_sucursal)
       // Sección de especialidad
       .section-especialidad
         h3 Seleccionar Especialidad

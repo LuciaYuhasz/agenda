@@ -11,10 +11,17 @@ exports.crearPaciente = async (nombre, apellido, dni, obra_social, telefono, ema
 
 // Función para listar todos los pacientes
 exports.listarPacientes = async () => {
-    const sql = 'SELECT * FROM pacientes';
+    const sql = `
+        SELECT p.id_paciente, p.nombre, p.apellido, p.dni, 
+               o.nombre AS obra_social, p.telefono, p.email, p.activo
+        FROM pacientes p
+        LEFT JOIN obras_sociales o ON p.id_obra_social = o.id_obra_social;
+    `;
+
     const [result] = await conn.query(sql);
     return result;
 };
+
 
 // Función para actualizar un paciente
 exports.modificarPaciente = async (id, nombre, apellido, dni, obra_social, telefono, email) => {

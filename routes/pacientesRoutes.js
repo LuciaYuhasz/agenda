@@ -6,7 +6,7 @@ const pacientesController = require('../controllers/pacientesControllers');
 // RUTAS DE PACIENTES DESDE PERSPECTICA DEL SECRETARIO
 
 // Mostrar formulario para registrar un nuevo paciente
-router.get('/pacientes/create', pacientesController.mostrarFormularioCrear);
+router.get('/pacientes/create', pacientesController.mostrarFormularioCreate);
 
 // Procesar el registro de un nuevo paciente
 router.post('/pacientes', pacientesController.crearPaciente);

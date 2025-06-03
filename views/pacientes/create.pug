@@ -12,19 +12,36 @@ block contenido
     .form-group
       label(for="dni") DNI:
       input(name="dni", type="text", placeholder="Ingrese DNI", required)
+
+    // Campo para seleccionar o agregar una nueva obra social
     .form-group
       label(for="obra_social") Obra Social:
-      input(name="obra_social", type="text", placeholder="Ingrese la obra social")
+      select(name="id_obra_social" id="obra_social" class="custom-select" required)
+        option(value="" disabled selected class="placeholder") -- Seleccione una obra social --
+        each obra in obrasSociales
+          option(value=obra.id_obra_social) #{obra.nombre}
+        option(value="nueva") Otra (Agregar nueva)
+
+    // Campo que aparece solo si el usuario selecciona "Otra"
+    .form-group#nuevo_obra_social(style="display: none;")
+      label(for="nuevo_obra_social") Nombre de la nueva obra social:
+      input(type="text" name="nuevo_obra_social", placeholder="Ingrese nueva obra social")
+
     .form-group
       label(for="telefono") Teléfono:
       input(name="telefono", type="text", placeholder="Ingrese el teléfono")
     .form-group
       label(for="email") Email:
       input(name="email", type="email", placeholder="Ingrese el email")
+
     .form-group
       button(type="submit") Agregar Paciente
 
-  // Agrega estilo opcional con una clase
+  script.
+    document.getElementById("obra_social").addEventListener("change", function() {
+      document.getElementById("nuevo_obra_social").style.display = this.value === "nueva" ? "block" : "none";
+    });
+
   style.
     form {
       max-width: 500px;
@@ -45,12 +62,25 @@ block contenido
       margin-bottom: 5px;
     }
 
-    input[type="text"], input[type="email"] {
+    input[type="text"], input[type="email"], .custom-select {
       width: 100%;
       padding: 10px;
       font-size: 14px;
       border: 1px solid #ccc;
       border-radius: 4px;
+    }
+
+    .custom-select {
+      background-color: #fff;
+      color: #333;
+      font-size: 14px;
+      appearance: none;
+      cursor: pointer;
+    }
+
+    .custom-select option.placeholder {
+      color: #888;
+      font-style: italic;
     }
 
     button {
@@ -69,9 +99,11 @@ block contenido
       background-color: #45a049;
     }
 
-    
     .form-title {
       text-align: center;
       font-size: 24px;
       margin-bottom: 20px;
     }
+
+
+

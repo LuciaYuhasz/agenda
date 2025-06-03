@@ -9,32 +9,114 @@ const bcrypt = require('bcrypt');
 //===========================================================//
 
 // Mostrar formulario para registrar un nuevo paciente
-/*exports.mostrarFormularioCrear = (req, res) => {
-    res.render("pacientes/crear");
-};*/
-exports.mostrarFormularioCrear = (req, res) => {
-    res.render('ingreso/pacientes/sacarTurno', {
-        especialidades,
-        id_profesional: req.query.id_profesional || '',
-        id_especialidad: req.query.id_especialidad || '',
-        nombreEspecialidad: req.query.nombreEspecialidad || '',
-        nombreProfesional: req.query.nombreProfesional || '' // nuevo
-    });
-}
+
+exports.mostrarFormularioCreate = async (req, res) => {
+    const [obrasSociales] = await conn.query("SELECT id_obra_social, nombre FROM obras_sociales ORDER BY nombre ASC");
+    res.render("pacientes/create", { obrasSociales });
+};
+// Crear un nuevo paciente
 // Crear un nuevo paciente
 exports.crearPaciente = async (req, res) => {
-    const { nombre, apellido, dni, obra_social, telefono, email } = req.body;
+    const { nombre, apellido, dni, id_obra_social, nuevo_obra_social, telefono, email } = req.body;
+
+    let obraSocialId = id_obra_social; // Inicializamos con el ID de la obra social
 
     try {
-        const id = await pacientesModel.crearPaciente(nombre, apellido, dni, obra_social, telefono, email);
+        // Si el usuario eligió "Otra" y quiere agregar una nueva obra social
+        if (id_obra_social === "nueva" && nuevo_obra_social) {
+            // Convertir a minúsculas para evitar duplicaciones sin importar mayúsculas/minúsculas
+            const nombreObraSocial = nuevo_obra_social.toLowerCase();
 
-        // Devuelve JSON si la solicitud vino por fetch
-        res.json({ mensaje: 'Paciente creado con éxito', id_paciente: id });
+            // Verificar si ya existe en la base de datos
+            const [existeObra] = await conn.query(
+                "SELECT id_obra_social FROM obras_sociales WHERE LOWER(nombre) = ?",
+                [nombreObraSocial]
+            );
+
+            if (existeObra.length > 0) {
+                // Si la obra social ya existe, usamos su ID
+                obraSocialId = existeObra[0].id_obra_social;
+            } else {
+                // Si no existe, creamos una nueva obra social y usamos su ID
+                const [nuevaObra] = await conn.query(
+                    "INSERT INTO obras_sociales (nombre) VALUES (?)",
+                    [nombreObraSocial]
+                );
+                obraSocialId = nuevaObra.insertId; // Obtén el ID de la nueva obra social
+            }
+        }
+
+        // Crear el paciente con la obra social asociada
+        const [result] = await conn.query(
+            "INSERT INTO pacientes (nombre, apellido, dni, id_obra_social, telefono, email) VALUES (?, ?, ?, ?, ?, ?)",
+            [nombre, apellido, dni, obraSocialId, telefono, email]
+        );
+
+        const idPaciente = result.insertId; // Obtiene el ID del paciente recién creado
+
+        // Devuelve JSON si la solicitud vino por fetch/AJAX, de lo contrario redirige
+        if (req.headers.accept && req.headers.accept.includes("application/json")) {
+            return res.json({ mensaje: "Paciente creado con éxito", id_paciente: idPaciente });
+        } else {
+            res.redirect("/pacientes");
+        }
+
     } catch (error) {
-        console.error('Error al insertar un nuevo paciente:', error);
-        res.status(500).json({ error: 'Error al insertar el paciente' }); // <-- respuesta adecuada para AJAX
+        console.error("Error al insertar un nuevo paciente:", error);
+        res.status(500).json({ error: "Error al insertar el paciente" });
     }
 };
+
+/*
+exports.crearPaciente = async (req, res) => {
+    const { nombre, apellido, dni, id_obra_social, nuevo_obra_social, telefono, email } = req.body;
+
+    let obraSocialId = id_obra_social;
+
+    try {
+        // Si el usuario eligió "Otra" y quiere agregar una nueva obra social
+        if (id_obra_social === "nueva" && nuevo_obra_social) {
+            // Convertir a minúsculas para evitar duplicaciones sin importar mayúsculas/minúsculas
+            const nombreObraSocial = nuevo_obra_social.toLowerCase();
+
+            // Verificar si ya existe en la base de datos
+            const [existeObra] = await conn.query(
+                "SELECT id_obra_social FROM obras_sociales WHERE LOWER(nombre) = ?",
+                [nombreObraSocial]
+            );
+
+            if (existeObra.length > 0) {
+                obraSocialId = existeObra[0].id_obra_social; // Usa la obra social existente
+            } else {
+                const [nuevaObra] = await conn.query(
+                    "INSERT INTO obras_sociales (nombre) VALUES (?)",
+                    [nombreObraSocial]
+                );
+                obraSocialId = nuevaObra.insertId; // Obtén el ID de la nueva obra social
+            }
+        }
+
+        // Crear el paciente con la obra social asociada
+        const [result] = await conn.query(
+            "INSERT INTO pacientes (nombre, apellido, dni, id_obra_social, telefono, email) VALUES (?, ?, ?, ?, ?, ?)",
+            [nombre, apellido, dni, obraSocialId, telefono, email]
+        );
+
+        const idPaciente = result.insertId; // Obtiene el ID del paciente recién creado
+
+        // Devuelve JSON si la solicitud vino por fetch/AJAX, de lo contrario redirige
+        if (req.headers.accept && req.headers.accept.includes("application/json")) {
+            return res.json({ mensaje: "Paciente creado con éxito", id_paciente: idPaciente });
+        } else {
+            res.redirect("/pacientes");
+        }
+
+    } catch (error) {
+        console.error("Error al insertar un nuevo paciente:", error);
+        res.status(500).json({ error: "Error al insertar el paciente" });
+    }
+};*/
+
 
 // Listar todos los pacientes 
 exports.listarPacientes = async (req, res) => {
@@ -109,17 +191,28 @@ AND activo = 1;
 // REGISTRO Y LOGIN DE USUARIO PACIENTE 
 //===========================================================//
 
-// Registrar nuevo usuario con rol paciente
+// Mostrar formulario de registro con obras sociales
+
+exports.renderRegisterForm = async (req, res) => {
+    try {
+        const [obrasSociales] = await conn.query("SELECT id_obra_social, nombre FROM obras_sociales");
+        res.render("ingreso/pacientes/register", { obrasSociales });
+    } catch (error) {
+        console.error("Error al obtener obras sociales:", error);
+        res.status(500).send("Error al cargar el formulario.");
+    }
+};
+
+// Asegúrate de exportar correctamente esta función
+
+
+// Registrar nuevo usuario con rol paciente o secretario
 exports.register = async (req, res) => {
-    const { email, password, id_rol, nombre, apellido, dni, obra_social, telefono } = req.body;
+    const { email, password, id_rol, nombre, apellido, dni, telefono } = req.body;
     const dniPhoto = req.file ? req.file.filename : null;
 
     try {
-        console.log("Datos recibidos:", req.body);
-        console.log("Archivo recibido:", req.file);
-
         if (!email || !password || !id_rol || !nombre || !apellido || !dni || !telefono || !dniPhoto) {
-            console.log("Datos incompletos");
             return res.status(400).send("Todos los campos son obligatorios.");
         }
 
@@ -131,26 +224,33 @@ exports.register = async (req, res) => {
             VALUES (?, ?, ?, 1)
         `;
         const [userResult] = await conn.query(userQuery, [email, hashedPassword, role]);
-        console.log("Usuario registrado con ID:", userResult.insertId);
+
+        const userId = userResult.insertId;
 
         if (role === 2) {
+            // PACIENTE
             const patientQuery = `
                 INSERT INTO pacientes (nombre, apellido, dni, obra_social, telefono, email, activo, id_usuario, foto_dni) 
                 VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?)
             `;
-            const [patientResult] = await conn.query(patientQuery, [
-                nombre, apellido, dni, obra_social, telefono, email, userResult.insertId, dniPhoto
-            ]);
-            console.log("Paciente registrado correctamente:", patientResult);
+            await conn.query(patientQuery, [nombre, apellido, dni, req.body.obra_social || '', telefono, email, userId, dniPhoto]);
+        } else if (role === 3) {
+            // SECRETARIA
+            const secretaryQuery = `
+                INSERT INTO secretarios (nombre, apellido, dni, telefono, email, activo, id_usuario, foto_dni) 
+                VALUES (?, ?, ?, ?, ?, 1, ?, ?)
+            `;
+            await conn.query(secretaryQuery, [nombre, apellido, dni, telefono, email, userId, dniPhoto]);
         }
 
         res.redirect("/login");
     } catch (error) {
-        console.error("Error al registrar usuario o paciente:", error);
+        console.error("Error al registrar:", error);
         res.status(500).send("Error interno del servidor.");
     }
 };
-// Login de usuario
+
+// Login de usuario o secretario
 exports.login = async (req, res) => {
     const { email, password } = req.body;
 
@@ -159,6 +259,7 @@ exports.login = async (req, res) => {
             "SELECT * FROM usuarios WHERE email = ? AND activo = 1",
             [email]
         );
+
         if (rows.length === 0) {
             return res.status(401).send("Usuario o contraseña incorrectos.");
         }
@@ -177,7 +278,17 @@ exports.login = async (req, res) => {
             id_rol: user.id_rol,
         };
 
-        res.redirect("/sucursales/sucursales");
+        // Redireccionar según el rol
+        switch (user.id_rol) {
+
+            case 2:
+                return res.redirect("/sucursales/sucursales");
+            case 3:
+                return res.redirect("/sucursales/sucursales"); // Secretaria
+            default:
+                return res.redirect("/login");
+        }
+
     } catch (error) {
         console.error("Error al iniciar sesión:", error);
         res.status(500).send("Hubo un error al iniciar sesión.");
@@ -187,17 +298,7 @@ exports.login = async (req, res) => {
 //===========================================================//
 // TURNO - PACIENTE SELECCIONA HORARIO
 //===========================================================//
-
-// Mostrar formulario para que el paciente saque turno
-/*exports.mostrarFormularioCrear = async (req, res) => {
-    try {
-        const [especialidades] = await conn.query('SELECT id_especialidad, nombre FROM especialidades');
-        res.render('ingreso/pacientes/sacarTurno', { especialidades });
-    } catch (error) {
-        console.error('Error al mostrar formulario de creación de turno:', error);
-        res.status(500).send('Error al cargar el formulario de creación de turno');
-    }
-};*/
+/*
 exports.mostrarFormularioCrear = async (req, res) => {
     try {
         const { id_profesional, id_especialidad } = req.query;
@@ -205,7 +306,7 @@ exports.mostrarFormularioCrear = async (req, res) => {
         // Cargar todas las especialidades para el autocompletado
         const [especialidades] = await conn.query('SELECT id_especialidad, nombre FROM especialidades');
 
-        // Podrías también cargar el nombre del profesional o especialidad si querés mostrarlo ya seleccionado
+        // Obtener el nombre de la especialidad seleccionada
         let nombreEspecialidad = '';
         if (id_especialidad) {
             const [resultado] = await conn.query('SELECT nombre FROM especialidades WHERE id_especialidad = ?', [id_especialidad]);
@@ -214,12 +315,81 @@ exports.mostrarFormularioCrear = async (req, res) => {
             }
         }
 
+        // Obtener el nombre del profesional seleccionado
+        let nombreProfesional = '';
+        if (id_profesional) {
+            const [profesional] = await conn.query('SELECT nombre FROM profesionales WHERE id_profesional = ?', [id_profesional]);
+            if (profesional.length > 0) {
+                nombreProfesional = profesional[0].nombre;
+            }
+        }
+
         res.render('ingreso/pacientes/sacarTurno', {
             especialidades,
             id_profesional,
             id_especialidad,
-            nombreEspecialidad
+            nombreEspecialidad,
+            nombreProfesional
         });
+    } catch (error) {
+        console.error('Error al mostrar formulario de creación de turno:', error);
+        res.status(500).send('Error al cargar el formulario de creación de turno');
+    }
+};*/
+
+
+
+
+exports.mostrarFormularioCrear = async (req, res) => {
+    try {
+        const { id_profesional, id_especialidad, id_sucursal } = req.query;
+
+        // Cargar especialidades filtradas por sucursal (si hay sucursal)
+        let especialidades = [];
+        if (id_sucursal) {
+            [especialidades] = await conn.query(`
+                SELECT DISTINCT e.id_especialidad, e.nombre 
+                FROM especialidades e
+                JOIN profesionales_especialidades pe ON e.id_especialidad = pe.id_especialidad
+                JOIN profesionales p ON pe.id_profesional = p.id_profesional
+                JOIN agenda a ON p.id_profesional = a.id_profesional
+                WHERE a.id_sucursal = ?
+            `, [id_sucursal]);
+        } else {
+            // Si no se pasa una sucursal, mostrar todas
+            [especialidades] = await conn.query(`
+                SELECT id_especialidad, nombre FROM especialidades
+            `);
+        }
+
+        // Obtener el nombre de la especialidad seleccionada (si hay)
+        let nombreEspecialidad = '';
+        if (id_especialidad) {
+            const [resultado] = await conn.query('SELECT nombre FROM especialidades WHERE id_especialidad = ?', [id_especialidad]);
+            if (resultado.length > 0) {
+                nombreEspecialidad = resultado[0].nombre;
+            }
+        }
+
+        // Obtener el nombre del profesional seleccionado (si hay)
+        let nombreProfesional = '';
+        if (id_profesional) {
+            const [profesional] = await conn.query('SELECT nombre FROM profesionales WHERE id_profesional = ?', [id_profesional]);
+            if (profesional.length > 0) {
+                nombreProfesional = profesional[0].nombre;
+            }
+        }
+
+        // Renderizar la vista con todos los datos necesarios
+        res.render('ingreso/pacientes/sacarTurno', {
+            especialidades,
+            id_profesional,
+            id_especialidad,
+            id_sucursal,
+            nombreEspecialidad,
+            nombreProfesional
+        });
+
     } catch (error) {
         console.error('Error al mostrar formulario de creación de turno:', error);
         res.status(500).send('Error al cargar el formulario de creación de turno');

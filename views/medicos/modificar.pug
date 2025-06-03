@@ -15,7 +15,10 @@ block contenido
                 input#dni.form-control(type="text", name="dni", value=medico.dni, required)
             .mb-3
                 label(for="id_sucursal", class="form-label") Sucursal
-                input#id_sucursal.form-control(type="text", name="id_sucursal", value=medico.id_sucursal, required)
+                select#id_sucursal.form-select(name="id_sucursal", required)
+                    each sucursal in sucursales
+                        option(value=sucursal.id_sucursal selected=(medico.id_sucursal == sucursal.id_sucursal)) #{sucursal.nombre}
+
             .mb-3
                 label(for="email", class="form-label") Email
                 input#email.form-control(type="email", name="email", value=medico.email, required)
