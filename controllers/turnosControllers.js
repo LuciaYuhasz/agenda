@@ -5,25 +5,33 @@ const conn = require('../db');
 // Mostrar formulario para crear un nuevo turno
 exports.mostrarFormularioCrear = async (req, res) => {
     try {
+        // Cargar obras sociales
+        const [obrasSociales] = await conn.query(
+            'SELECT id_obra_social, nombre FROM obras_sociales ORDER BY nombre ASC'
+        );
+
         // Cargar pacientes, profesionales y especialidades
         const [pacientes] = await conn.query('SELECT * FROM pacientes');
         const [profesionales] = await conn.query('SELECT * FROM profesionales');
-        const [especialidades] = await conn.query('SELECT id_especialidad, nombre FROM especialidades');
+        const [especialidades] = await conn.query(
+            'SELECT id_especialidad, nombre FROM especialidades'
+        );
 
-        // Parámetros necesarios para obtener horarios
-        const id_profesional = req.query.id_profesional || profesionales[0].id_profesional;
-        const id_especialidad = req.query.id_especialidad || especialidades[0].id_especialidad;
-        const fecha = req.query.fecha || new Date().toISOString().split('T')[0]; // Fecha actual por defecto
+        const id_profesional =
+            req.query.id_profesional || profesionales[0].id_profesional;
+        const id_especialidad =
+            req.query.id_especialidad || especialidades[0].id_especialidad;
+        const fecha =
+            req.query.fecha || new Date().toISOString().split('T')[0];
 
-        // Obtener todos los horarios
         const [horarios] = await conn.query('SELECT * FROM horarios');
 
-        // Renderizar la vista del formulario de crear turno con todos los datos
         res.render('turnos/crear', {
             pacientes,
             profesionales,
             especialidades,
             horariosDisponibles: horarios,
+            obrasSociales, // 👈 lo agregás acá
             id_profesional,
             id_especialidad,
             fecha
@@ -34,37 +42,6 @@ exports.mostrarFormularioCrear = async (req, res) => {
     }
 };
 
-// Obtener horarios disponibles
-exports.obtenerHorarios = async (req, res) => {
-    const id_profesional = req.params.id_profesional;  // ID del profesional
-    const id_especialidad = req.params.id_especialidad; // ID de la especialidad
-
-    const query = `
-       SELECT h.*
-FROM horarios h
-JOIN agendas a ON h.id_agenda = a.id_agenda
-WHERE a.id_profesional = ? -- Pedro Gutierrez
-AND a.id_profesional_especialidad = ?  -- Aquí pones el id de la especialidad que deseas consultar, ej. Cardiología (1) o Pediatría (2)
-AND h.estado = 'Libre'
-ORDER BY h.fecha, h.hora_inicio;
-
-
-    `;
-
-    try {
-        const [resultados] = await conn.query(query, [id_profesional, id_especialidad]);
-
-        // Verificar si hay resultados
-        if (resultados.length === 0) {
-            return res.status(404).json({ message: 'No se encontraron horarios disponibles' });
-        }
-
-        res.json(resultados);
-    } catch (error) {
-        console.error('Error al obtener horarios disponibles:', error);
-        res.status(500).json({ error: 'Error al obtener horarios disponibles' });
-    }
-};
 exports.crearTurno = async (req, res) => {
     console.log('Controlador crearTurno iniciado');
     let {
@@ -177,9 +154,8 @@ exports.crearTurno = async (req, res) => {
     }
 };
 
-const { format } = require('date-fns');
-const { es } = require('date-fns/locale');
 
+/*
 exports.mostrarAgenda = async (req, res) => {
     try {
         const { id_profesional, id_especialidad } = req.params;
@@ -300,7 +276,148 @@ WHERE pe.id_profesional = ?
         console.error('Error al mostrar la agenda del profesional:', error);
         res.status(500).send('Error al cargar la agenda del profesional');
     }
+};*/
+const { format } = require('date-fns');
+const { es } = require('date-fns/locale');
+
+// 🔧 Funciones auxiliares
+function normalizarHora(hora) {
+    if (!hora || typeof hora !== 'string') return '00:00:00';
+    const partes = hora.split(':');
+    return `${partes[0]?.padStart(2, '0') || '00'}:${partes[1]?.padStart(2, '0') || '00'}:${partes[2]?.padStart(2, '0') || '00'}`;
+}
+
+function construirTimestamp(fecha, hora) {
+    const horaNormalizada = normalizarHora(hora);
+    const dateTimeString = `${fecha}T${horaNormalizada}`;
+    const timestamp = new Date(dateTimeString);
+    return isNaN(timestamp) ? null : timestamp;
+}
+
+exports.mostrarAgenda = async (req, res) => {
+    try {
+        const { id_profesional, id_especialidad } = req.params;
+
+        // 👉 Obtener datos básicos
+        const [profesionalData] = await conn.query(
+            'SELECT p.nombre, p.apellido, p.email FROM profesionales p WHERE p.id_profesional = ?',
+            [id_profesional]
+        );
+
+        const [matriculaData] = await conn.query(
+            'SELECT pe.matricula FROM profesionales_especialidades pe WHERE pe.id_profesional = ? AND pe.id_especialidad = ?',
+            [id_profesional, id_especialidad]
+        );
+
+        const [especialidadData] = await conn.query(
+            'SELECT * FROM especialidades WHERE id_especialidad = ?',
+            [id_especialidad]
+        );
+
+        if (profesionalData.length === 0 || especialidadData.length === 0 || matriculaData.length === 0) {
+            return res.status(404).json({ error: 'Profesional o especialidad no encontrados' });
+        }
+
+        // 👉 Turnos ocupados
+        const [turnos] = await conn.query(
+            `SELECT t.*, p.nombre AS paciente_nombre, p.apellido AS paciente_apellido
+       FROM turnos t
+       LEFT JOIN pacientes p ON t.id_paciente = p.id_paciente
+       WHERE t.id_profesional = ? AND t.id_especialidad = ?
+       ORDER BY t.fecha, t.hora`,
+            [id_profesional, id_especialidad]
+        );
+
+        // 👉 Horarios disponibles
+        const [horarios] = await conn.query(
+            `SELECT h.*
+       FROM horarios h
+       JOIN agendas a ON h.id_agenda = a.id_agenda
+       JOIN profesionales_especialidades pe ON a.id_profesional = pe.id_profesional
+       WHERE pe.id_profesional = ? 
+         AND pe.id_especialidad = ? 
+         AND h.estado = 2
+         AND a.id_agenda IN (
+            SELECT id_agenda 
+            FROM agendas 
+            WHERE id_profesional = ? AND id_profesional_especialidad = ?
+         )`,
+            [id_profesional, id_especialidad, id_profesional, id_especialidad]
+        );
+
+        // 👉 Armar agenda combinada
+        const agenda = [];
+
+        // Turnos ocupados
+        turnos.forEach(turno => {
+            const horaNormalizada = normalizarHora(turno.hora);
+            const fechaOriginal = new Date(turno.fecha); // ✅ Ya es Date, pero lo aseguramos
+            const fechaISO = fechaOriginal.toISOString().split('T')[0]; // obtenemos '2025-07-07'
+            const fechaHora = new Date(`${fechaISO}T${horaNormalizada}`); // correcta composición
+
+            agenda.push({
+                id_turno: turno.id_turno,
+                fecha: '', // 👇 la vamos a rellenar luego
+                hora: horaNormalizada,
+                paciente: `${turno.paciente_nombre} ${turno.paciente_apellido}`,
+                motivo: turno.motivo_consulta,
+                estado: turno.estado,
+                tipo: 'ocupado',
+                timestamp: fechaHora
+            });
+        });
+
+        horarios.forEach(horario => {
+            const horaInicioNormalizada = normalizarHora(horario.hora_inicio);
+            const horaFinNormalizada = normalizarHora(horario.hora_fin);
+            const fechaOriginal = new Date(horario.fecha); // mismo caso
+            const fechaISO = fechaOriginal.toISOString().split('T')[0];
+            const fechaHoraInicio = new Date(`${fechaISO}T${horaInicioNormalizada}`);
+
+            agenda.push({
+                id_turno: null,
+                fecha: '', // 👇 la vamos a rellenar luego
+                hora: `${horaInicioNormalizada} - ${horaFinNormalizada}`,
+                paciente: 'Disponible',
+                motivo: 'N/A',
+                estado: 'Disponible',
+                tipo: 'disponible',
+                timestamp: fechaHoraInicio
+            });
+        });
+
+
+        // Ordenar por timestamp real
+        agenda.sort((a, b) => a.timestamp - b.timestamp);
+
+        // Formatear fechas una vez ya ordenado
+        agenda.forEach(item => {
+            if (item.timestamp) {
+                item.fecha = format(item.timestamp, 'eeee dd MMMM yyyy', { locale: es });
+            } else {
+                item.fecha = 'Fecha inválida';
+            }
+        });
+
+
+        // 👉 Renderizar vista
+        res.render('turnos/agenda', {
+            nombre: profesionalData[0].nombre,
+            apellido: profesionalData[0].apellido,
+            email: profesionalData[0].email,
+            especialidad: especialidadData[0],
+            matricula: matriculaData[0].matricula,
+            agenda
+        });
+
+    } catch (error) {
+        console.error('Error al mostrar la agenda del profesional:', error);
+        res.status(500).send('Error al cargar la agenda del profesional');
+    }
 };
+
+
+
 
 //Funcion para transgerir turnos 
 
@@ -461,24 +578,148 @@ exports.confirmTransfer = async (req, res) => {
 };
 
 
+// Obtener horarios disponibles
+exports.obtenerHorarios = async (req, res) => {
+    const id_profesional = req.params.id_profesional;
+    const id_especialidad = req.params.id_especialidad;
+    const fechaInicio = req.params.fecha_inicio;
+
+    try {
+        const fechaFin = new Date(fechaInicio);
+        fechaFin.setDate(fechaFin.getDate() + 6); // sumar 6 días
+        const fechaFinISO = fechaFin.toISOString().split('T')[0];
+
+        const [resultado] = await conn.query(`
+            SELECT id_profesional, id_especialidad
+            FROM profesionales_especialidades
+            WHERE id_profesional = ? AND id_especialidad = ?
+        `, [id_profesional, id_especialidad]);
+
+        if (resultado.length === 0) {
+            return res.status(404).json({ message: 'Relación profesional-especialidad no encontrada' });
+        }
+
+        const [horarios] = await conn.query(`
+    SELECT 
+        h.id_horarios,
+        DATE_FORMAT(h.fecha, '%Y-%m-%d') AS fecha,  -- ← esto evita la conversión UTC
+        h.hora_inicio,
+        h.hora_fin,
+        h.estado,
+        h.disponible
+    FROM horarios h
+    JOIN agendas a ON h.id_agenda = a.id_agenda
+    WHERE a.id_profesional = ?
+      AND a.id_profesional_especialidad = (
+          SELECT id_profesional_especialidad
+          FROM agendas
+          WHERE id_profesional = ?
+          LIMIT 1
+      )
+      AND h.estado = 'Libre'
+      AND h.fecha BETWEEN ? AND ?
+    ORDER BY h.fecha, h.hora_inicio
+`, [id_profesional, id_profesional, fechaInicio, fechaFinISO]);
 
 
+        res.json(horarios);
+    } catch (error) {
+        console.error('Error al obtener horarios disponibles:', error);
+        res.status(500).json({ error: 'Error al obtener horarios disponibles' });
+    }
+};
 
 
+exports.agregarListaEspera = async (req, res) => {
+    const { id_paciente, id_profesional, id_especialidad } = req.body;
 
+    try {
+        // 1. Validar existencia de la relación profesional - especialidad
+        const [relacion] = await conn.query(
+            `SELECT id_profesional, id_especialidad
+       FROM profesionales_especialidades
+       WHERE id_profesional = ? AND id_especialidad = ?`,
+            [id_profesional, id_especialidad]
+        );
+        if (relacion.length === 0) {
+            return res.status(400).json({ error: 'Relación profesional-especialidad no encontrada' });
+        }
 
+        // 2. Obtener id_profesional_especialidad e id_agenda de la tabla agendas
+        const [agendaRows] = await conn.query(
+            `SELECT id_profesional_especialidad, id_agenda
+       FROM agendas
+       WHERE id_profesional = ?
+       LIMIT 1`,
+            [id_profesional]
+        );
+        if (agendaRows.length === 0) {
+            return res.status(400).json({ error: 'No se encontró una agenda para el profesional' });
+        }
 
+        const { id_profesional_especialidad, id_agenda } = agendaRows[0];
 
+        // 3. Insertar registro en lista_espera con todos los datos necesarios
+        await conn.query(
+            `INSERT INTO lista_espera (
+         id_paciente,
+         id_profesional_especialidad,
+         id_profesional,
+         id_agenda
+       ) VALUES (?, ?, ?, ?)`,
+            [id_paciente, id_profesional_especialidad, id_profesional, id_agenda]
+        );
 
+        res.json({ mensaje: 'Paciente agregado a la lista de espera' });
 
+    } catch (err) {
+        console.error('Error al insertar en lista de espera:', err);
+        res.status(500).json({ error: 'Error en el servidor' });
+    }
+};
 
+exports.verListaEspera = async (req, res) => {
+    try {
+        const [result] = await conn.query(`
+      SELECT 
+        le.id_lista_espera,
+        p.nombre AS nombre_paciente,
+        p.apellido AS apellido_paciente,
+        p.dni,
+        pr.nombre AS nombre_profesional,
+        pr.apellido AS apellido_profesional,
+        e.nombre AS especialidad,
+        a.id_agenda
+      FROM lista_espera le
+      JOIN pacientes p ON le.id_paciente = p.id_paciente
+      JOIN profesionales pr ON le.id_profesional = pr.id_profesional
+      JOIN agendas a ON le.id_agenda = a.id_agenda
+      JOIN profesionales_especialidades pe ON pe.id_profesional = pr.id_profesional
+      JOIN especialidades e ON pe.id_especialidad = e.id_especialidad
+      ORDER BY a.id_agenda, pr.apellido, e.nombre
+    `);
 
+        // Agrupamos los resultados por id_agenda
+        const agrupado = result.reduce((acc, item) => {
+            let grupo = acc.find(g => g.id_agenda === item.id_agenda);
+            if (!grupo) {
+                grupo = {
+                    id_agenda: item.id_agenda,
+                    items: []
+                };
+                acc.push(grupo);
+            }
+            grupo.items.push(item);
+            return acc;
+        }, []);
 
+        res.render('turnos/lista_espera', { listaAgrupadaPorAgenda: agrupado });
 
-
-
-
-
+    } catch (err) {
+        console.error('Error al obtener lista de espera:', err);
+        res.status(500).send('Error del servidor');
+    }
+};
 
 
 

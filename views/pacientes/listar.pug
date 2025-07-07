@@ -1,29 +1,45 @@
 //- views/pacientes/listar.pug
-extends ../layout.pug 
-block contenido 
-        a(href="/pacientes/create" class= "btn btn-success") Ingresar Paciente
-        table( class="table table-striped")
-            thead
-                tr
-                    th Nombre
-                    th Apellido
-                    th DNI
-                    th Obra Social
-                    th Teléfono
-                    th Email
-                    th Acciones
-                    th Activo
-            tbody
-                each paciente in pacientes
-                    tr(class=(paciente.activo == 1)? 'activo' : 'inactivo')
-                        td= paciente.nombre
-                        td= paciente.apellido
-                        td= paciente.dni
-                        td= paciente.obra_social
-                        td= paciente.telefono
-                        td= paciente.email
-                        td= (paciente.activo == 1) ? 'Activo' : 'Inactivo'
-                        td
-                           a(href=`/pacientes/editar/${paciente.id_paciente}` class="btn btn-info") Modificar 
-                           form(action=`/pacientes/eliminar/${paciente.id_paciente}`, method="POST", style="display:inline;")
-                            button(type="submit" class="btn btn-danger" onclick="return confirm('¿Estás seguro de que deseas eliminar a este paciente?');") Borrar
+extends ../layout.pug
+
+block contenido
+  .container
+    h1.text-center Listado de Pacientes
+
+    button#btn-volver(type="button" class="btn btn-secondary" onclick="history.back()") Volver
+
+
+
+    // 🔍 Buscador
+    form(method="GET", action="/pacientes" class="mb-4")
+      .input-group
+        input.form-control(type="text", name="busqueda", placeholder="Buscar por nombre, apellido o DNI" value=busqueda || "")
+        button.btn.btn-primary(type="submit") Buscar
+
+    // ➕ Nuevo paciente
+    a(href="/pacientes/create" class="btn btn-success mb-3") Ingresar Paciente
+
+    // 🩺 Listado en acordeón
+    if agrupados
+      each grupo, letra in agrupados
+        h3.mt-4= `Pacientes - Letra ${letra}`
+
+        .accordion(id=`accordion-${letra}`)
+          each paciente, idx in grupo
+            .accordion-item
+              h2.accordion-header
+                button.accordion-button.collapsed(type="button", data-bs-toggle="collapse", data-bs-target=`#collapse-${letra}-${idx}`)
+                  = `${paciente.nombre} ${paciente.apellido} (${paciente.dni})`
+              .accordion-collapse.collapse(id=`collapse-${letra}-${idx}`, data-bs-parent=`#accordion-${letra}`)
+                .accordion-body
+                  p strong Obra Social: 
+                    | #{paciente.obra_social}
+                  p strong Teléfono: 
+                    | #{paciente.telefono}
+                  p strong Email: 
+                    | #{paciente.email}
+                  p strong Estado: 
+                    | #{paciente.activo == 1 ? 'Activo' : 'Inactivo'}
+
+                  a(href=`/pacientes/editar/${paciente.id_paciente}` class="btn btn-info btn-sm me-2") Modificar
+                  form(action=`/pacientes/eliminar/${paciente.id_paciente}`, method="POST", style="display:inline;")
+                    button(type="submit" class="btn btn-danger btn-sm" onclick="return confirm('¿Estás seguro que querés eliminar a este paciente?');") Borrar

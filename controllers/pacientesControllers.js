@@ -15,120 +15,114 @@ exports.mostrarFormularioCreate = async (req, res) => {
     res.render("pacientes/create", { obrasSociales });
 };
 // Crear un nuevo paciente
-// Crear un nuevo paciente
-exports.crearPaciente = async (req, res) => {
-    const { nombre, apellido, dni, id_obra_social, nuevo_obra_social, telefono, email } = req.body;
-
-    let obraSocialId = id_obra_social; // Inicializamos con el ID de la obra social
-
-    try {
-        // Si el usuario eligió "Otra" y quiere agregar una nueva obra social
-        if (id_obra_social === "nueva" && nuevo_obra_social) {
-            // Convertir a minúsculas para evitar duplicaciones sin importar mayúsculas/minúsculas
-            const nombreObraSocial = nuevo_obra_social.toLowerCase();
-
-            // Verificar si ya existe en la base de datos
-            const [existeObra] = await conn.query(
-                "SELECT id_obra_social FROM obras_sociales WHERE LOWER(nombre) = ?",
-                [nombreObraSocial]
-            );
-
-            if (existeObra.length > 0) {
-                // Si la obra social ya existe, usamos su ID
-                obraSocialId = existeObra[0].id_obra_social;
-            } else {
-                // Si no existe, creamos una nueva obra social y usamos su ID
-                const [nuevaObra] = await conn.query(
-                    "INSERT INTO obras_sociales (nombre) VALUES (?)",
-                    [nombreObraSocial]
-                );
-                obraSocialId = nuevaObra.insertId; // Obtén el ID de la nueva obra social
-            }
-        }
-
-        // Crear el paciente con la obra social asociada
-        const [result] = await conn.query(
-            "INSERT INTO pacientes (nombre, apellido, dni, id_obra_social, telefono, email) VALUES (?, ?, ?, ?, ?, ?)",
-            [nombre, apellido, dni, obraSocialId, telefono, email]
-        );
-
-        const idPaciente = result.insertId; // Obtiene el ID del paciente recién creado
-
-        // Devuelve JSON si la solicitud vino por fetch/AJAX, de lo contrario redirige
-        if (req.headers.accept && req.headers.accept.includes("application/json")) {
-            return res.json({ mensaje: "Paciente creado con éxito", id_paciente: idPaciente });
-        } else {
-            res.redirect("/pacientes");
-        }
-
-    } catch (error) {
-        console.error("Error al insertar un nuevo paciente:", error);
-        res.status(500).json({ error: "Error al insertar el paciente" });
-    }
-};
-
-/*
 exports.crearPaciente = async (req, res) => {
     const { nombre, apellido, dni, id_obra_social, nuevo_obra_social, telefono, email } = req.body;
 
     let obraSocialId = id_obra_social;
 
     try {
-        // Si el usuario eligió "Otra" y quiere agregar una nueva obra social
+        // 1. Si se agregó una nueva obra social
         if (id_obra_social === "nueva" && nuevo_obra_social) {
-            // Convertir a minúsculas para evitar duplicaciones sin importar mayúsculas/minúsculas
             const nombreObraSocial = nuevo_obra_social.toLowerCase();
 
-            // Verificar si ya existe en la base de datos
             const [existeObra] = await conn.query(
                 "SELECT id_obra_social FROM obras_sociales WHERE LOWER(nombre) = ?",
                 [nombreObraSocial]
             );
 
             if (existeObra.length > 0) {
-                obraSocialId = existeObra[0].id_obra_social; // Usa la obra social existente
+                obraSocialId = existeObra[0].id_obra_social;
             } else {
                 const [nuevaObra] = await conn.query(
                     "INSERT INTO obras_sociales (nombre) VALUES (?)",
                     [nombreObraSocial]
                 );
-                obraSocialId = nuevaObra.insertId; // Obtén el ID de la nueva obra social
+                obraSocialId = nuevaObra.insertId;
             }
         }
 
-        // Crear el paciente con la obra social asociada
-        const [result] = await conn.query(
-            "INSERT INTO pacientes (nombre, apellido, dni, id_obra_social, telefono, email) VALUES (?, ?, ?, ?, ?, ?)",
-            [nombre, apellido, dni, obraSocialId, telefono, email]
+        // 2. Insertar el nuevo usuario asociado al paciente
+        const defaultPassword = "123456";
+        const hashedPassword = await bcrypt.hash(defaultPassword, 10);
+        const idRolPaciente = 2;
+
+        const [usuario] = await conn.query(
+            "INSERT INTO usuarios (email, password, id_rol, activo) VALUES (?, ?, ?, 1)",
+            [email, hashedPassword, idRolPaciente]
         );
 
-        const idPaciente = result.insertId; // Obtiene el ID del paciente recién creado
+        const idUsuario = usuario.insertId;
 
-        // Devuelve JSON si la solicitud vino por fetch/AJAX, de lo contrario redirige
-        if (req.headers.accept && req.headers.accept.includes("application/json")) {
-            return res.json({ mensaje: "Paciente creado con éxito", id_paciente: idPaciente });
+        // 3. Insertar el paciente con la obra social y el id_usuario vinculado
+        const [paciente] = await conn.query(
+            "INSERT INTO pacientes (nombre, apellido, dni, id_obra_social, telefono, email, activo, id_usuario) VALUES (?, ?, ?, ?, ?, ?, 1, ?)",
+            [nombre, apellido, dni, obraSocialId, telefono, email, idUsuario]
+        );
+
+        // 🔍 Detectar si la solicitud es AJAX (fetch) o HTML (formulario)
+        const isAjax = req.xhr || req.headers.accept.includes('json');
+
+        if (isAjax) {
+            // Responder con JSON para solicitudes fetch/AJAX
+            res.json({ id_paciente: paciente.insertId, message: "Paciente registrado correctamente" });
         } else {
+            // Redirigir para formularios normales
             res.redirect("/pacientes");
         }
 
     } catch (error) {
-        console.error("Error al insertar un nuevo paciente:", error);
-        res.status(500).json({ error: "Error al insertar el paciente" });
+        console.error("Error al crear el paciente y usuario:", error);
+        res.status(500).send("Hubo un error al registrar el paciente.");
     }
-};*/
+};
 
 
-// Listar todos los pacientes 
+// Listar todos los pacientes
 exports.listarPacientes = async (req, res) => {
     try {
-        const pacientes = await pacientesModel.listarPacientes();
-        const mensaje = req.query.mensaje;
-        res.render('pacientes/listar', { pacientes, mensaje });
+        const { busqueda } = req.query;
+        let pacientes;
+
+        if (busqueda) {
+            const [resultado] = await conn.query(
+                `SELECT p.*, o.nombre AS obra_social
+         FROM pacientes p
+         LEFT JOIN obras_sociales o ON p.id_obra_social = o.id_obra_social
+         WHERE p.nombre LIKE ? OR p.apellido LIKE ? OR p.dni LIKE ?
+         ORDER BY p.apellido ASC`,
+                [`%${busqueda}%`, `%${busqueda}%`, `%${busqueda}%`]
+            );
+            pacientes = resultado;
+        } else {
+            const [resultado] = await conn.query(
+                `SELECT p.*, o.nombre AS obra_social
+         FROM pacientes p
+         LEFT JOIN obras_sociales o ON p.id_obra_social = o.id_obra_social
+         ORDER BY p.apellido ASC`
+            );
+            pacientes = resultado;
+        }
+
+        const agrupados = {};
+        pacientes.forEach(paciente => {
+            const letra = paciente.apellido.charAt(0).toUpperCase();
+            if (!agrupados[letra]) agrupados[letra] = [];
+            agrupados[letra].push(paciente);
+        });
+
+        res.render('pacientes/listar', {
+            agrupados,
+            busqueda,
+            mensaje: req.query.mensaje || null
+        });
+
     } catch (error) {
         console.error('Error al consultar pacientes:', error);
         res.status(500).send('Error al consultar los pacientes');
     }
 };
+
+
 // Mostrar formulario para editar paciente
 exports.mostrarFormularioModificar = async (req, res) => {
     const { id } = req.params;
@@ -167,6 +161,7 @@ exports.cambiarEstadoInactivo = async (req, res) => {
     }
 };
 // Buscar pacientes por nombre, apellido o DNI
+/*
 exports.buscarpaciente = async (req, res) => {
     const query = req.query.query;
 
@@ -185,30 +180,80 @@ AND activo = 1;
         console.error('Error al buscar pacientes:', error);
         res.status(500).json({ error: error.message }); // Proporcionar más información del error
     }
+};*/
+exports.buscarpaciente = async (req, res) => {
+    const query = req.query.query;
+
+    try {
+        const [pacientes] = await conn.query(
+            `
+      SELECT 
+        p.id_paciente,
+        p.nombre,
+        p.apellido,
+        p.dni,
+         o.id_obra_social,
+        o.nombre AS obra_social,
+        p.telefono,
+        p.email
+      FROM pacientes p
+      LEFT JOIN obras_sociales o ON p.id_obra_social = o.id_obra_social
+      WHERE (p.nombre LIKE ? OR p.apellido LIKE ? OR p.dni LIKE ?)
+      AND p.activo = 1
+      `,
+            [`%${query}%`, `%${query}%`, `%${query}%`]
+        );
+
+        res.json(pacientes || []);
+    } catch (error) {
+        console.error('Error al buscar pacientes:', error);
+        res.status(500).json({ error: error.message });
+    }
 };
+
 
 //===========================================================//
 // REGISTRO Y LOGIN DE USUARIO PACIENTE 
 //===========================================================//
 
-// Mostrar formulario de registro con obras sociales
 
+//// Renderiza el formulario de registro de secretarios con la lista de sucursales desde la base de datos.
+exports.renderSecretaryRegisterForm = async (req, res) => {
+    try {
+        const [sucursales] = await conn.query("SELECT id_sucursal, nombre FROM sucursales ORDER BY nombre");
+        res.render("ingreso/secretarios/register", { sucursales });
+    } catch (error) {
+        console.error("Error al obtener sucursales:", error);
+        res.status(500).send("Error al cargar el formulario.");
+    }
+};
+
+//// Renderiza el formulario de registro de pacientes con la lista formateada de obras sociales desde la base de datos.
 exports.renderRegisterForm = async (req, res) => {
     try {
-        const [obrasSociales] = await conn.query("SELECT id_obra_social, nombre FROM obras_sociales");
+        // Consulta y formatea las obras sociales
+        const [obrasSociales] = await conn.query(`
+            SELECT id_obra_social, 
+                   CASE 
+                       WHEN nombre = 'Particular' THEN nombre 
+                       ELSE CONCAT(UCASE(LEFT(nombre, 1)), LCASE(SUBSTRING(nombre, 2))) 
+                   END AS nombre
+            FROM obras_sociales
+            ORDER BY CASE WHEN nombre = 'Particular' THEN 0 ELSE 1 END, nombre;
+        `);
+
         res.render("ingreso/pacientes/register", { obrasSociales });
+
     } catch (error) {
         console.error("Error al obtener obras sociales:", error);
         res.status(500).send("Error al cargar el formulario.");
     }
 };
 
-// Asegúrate de exportar correctamente esta función
 
-
-// Registrar nuevo usuario con rol paciente o secretario
+// Registra un nuevo usuario (paciente o secretaria) en la base de datos según su rol, incluyendo su información personal y foto del DNI.
 exports.register = async (req, res) => {
-    const { email, password, id_rol, nombre, apellido, dni, telefono } = req.body;
+    const { email, password, id_rol, nombre, apellido, dni, telefono, obra_social, id_sucursal } = req.body;
     const dniPhoto = req.file ? req.file.filename : null;
 
     try {
@@ -219,39 +264,50 @@ exports.register = async (req, res) => {
         const role = parseInt(id_rol, 10);
         const hashedPassword = await bcrypt.hash(password, 10);
 
+        // Crear usuario base
         const userQuery = `
             INSERT INTO usuarios (email, password, id_rol, activo) 
             VALUES (?, ?, ?, 1)
         `;
         const [userResult] = await conn.query(userQuery, [email, hashedPassword, role]);
-
         const userId = userResult.insertId;
-
+        // para rol de paciente
         if (role === 2) {
-            // PACIENTE
+            const { obra_social: id_obra_social } = req.body;
+
+
             const patientQuery = `
-                INSERT INTO pacientes (nombre, apellido, dni, obra_social, telefono, email, activo, id_usuario, foto_dni) 
-                VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?)
-            `;
-            await conn.query(patientQuery, [nombre, apellido, dni, req.body.obra_social || '', telefono, email, userId, dniPhoto]);
-        } else if (role === 3) {
-            // SECRETARIA
+    INSERT INTO pacientes (nombre, apellido, dni, id_obra_social, telefono, email, activo, id_usuario, foto_dni) 
+    VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?)
+  `;
+            await conn.query(patientQuery, [nombre, apellido, dni, id_obra_social, telefono, email, userId, dniPhoto]);
+        }
+        //para secretaria
+        else if (role === 3) {
+
             const secretaryQuery = `
-                INSERT INTO secretarios (nombre, apellido, dni, telefono, email, activo, id_usuario, foto_dni) 
-                VALUES (?, ?, ?, ?, ?, 1, ?, ?)
+                INSERT INTO secretarios (nombre, apellido, dni, telefono, email, activo, id_usuario, foto_dni, id_sucursal) 
+                VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?)
             `;
-            await conn.query(secretaryQuery, [nombre, apellido, dni, telefono, email, userId, dniPhoto]);
+            await conn.query(secretaryQuery, [nombre, apellido, dni, telefono, email, userId, dniPhoto, id_sucursal]);
+        }
+        //para paciente
+        if (role === 2) {
+            return res.redirect("/login"); // login de pacientes
+        } else if (role === 3) {
+            return res.redirect("/secretarios/login"); // login de secretarios
         }
 
-        res.redirect("/login");
+
     } catch (error) {
         console.error("Error al registrar:", error);
         res.status(500).send("Error interno del servidor.");
     }
 };
 
-// Login de usuario o secretario
-exports.login = async (req, res) => {
+
+//login o  Autentica al usuario, verifica sus credenciales y redirige según su rol (paciente o secretaria), guardando su sesión activa.
+exports.login = async (req, res, expectedRole) => {
     const { email, password } = req.body;
 
     try {
@@ -271,22 +327,43 @@ exports.login = async (req, res) => {
             return res.status(401).send("Usuario o contraseña incorrectos.");
         }
 
-        // Guardar usuario en sesión
+        if (user.id_rol !== expectedRole) {
+            return res.status(403).send("No tiene permiso para acceder desde esta ruta.");
+        }
+
         req.session.user = {
             id: user.id_usuario,
             email: user.email,
             id_rol: user.id_rol,
-        };
+        }
+        /*req.session.usuario = {
+            id_usuario: user.id_usuario,
+            email: user.email,
+            id_rol: user.id_rol
+        };*/
 
-        // Redireccionar según el rol
-        switch (user.id_rol) {
 
-            case 2:
-                return res.redirect("/sucursales/sucursales");
-            case 3:
-                return res.redirect("/sucursales/sucursales"); // Secretaria
-            default:
-                return res.redirect("/login");
+        // Redirección según el rol
+        if (user.id_rol === 3) {
+            // SECRETARIO
+            const [secretarioData] = await conn.query(`
+                SELECT s.id_sucursal, suc.nombre 
+                FROM secretarios s 
+                JOIN sucursales suc ON s.id_sucursal = suc.id_sucursal 
+                WHERE s.id_usuario = ?
+            `, [user.id_usuario]);
+
+            if (secretarioData.length > 0) {
+                const sucursalNombre = secretarioData[0].nombre.toLowerCase().replace(/\s/g, "");
+                return res.redirect(`/sucursales/${sucursalNombre}`);
+            } else {
+                return res.status(403).send("No se encontró la sucursal asociada.");
+            }
+        } else if (user.id_rol === 2) {
+            // PACIENTE
+            return res.redirect("/sucursales/sucursales");
+        } else {
+            return res.status(403).send("Rol no permitido.");
         }
 
     } catch (error) {
@@ -295,11 +372,11 @@ exports.login = async (req, res) => {
     }
 };
 
+
 //===========================================================//
 // TURNO - PACIENTE SELECCIONA HORARIO
 //===========================================================//
-/*
-exports.mostrarFormularioCrear = async (req, res) => {
+/*exports.mostrarFormularioCrear = async (req, res) => {
     try {
         const { id_profesional, id_especialidad } = req.query;
 
@@ -352,7 +429,7 @@ exports.mostrarFormularioCrear = async (req, res) => {
                 FROM especialidades e
                 JOIN profesionales_especialidades pe ON e.id_especialidad = pe.id_especialidad
                 JOIN profesionales p ON pe.id_profesional = p.id_profesional
-                JOIN agenda a ON p.id_profesional = a.id_profesional
+                JOIN agendas a ON p.id_profesional = a.id_profesional
                 WHERE a.id_sucursal = ?
             `, [id_sucursal]);
         } else {
@@ -381,14 +458,19 @@ exports.mostrarFormularioCrear = async (req, res) => {
         }
 
         // Renderizar la vista con todos los datos necesarios
+        console.log("💬 Mensaje desde sesión:", req.session.mensajeExito);
+
         res.render('ingreso/pacientes/sacarTurno', {
             especialidades,
             id_profesional,
             id_especialidad,
             id_sucursal,
             nombreEspecialidad,
-            nombreProfesional
+            nombreProfesional,
+            mensajeExito: req.session.mensajeExito // ⬅️ Acá lo incorporás
         });
+        req.session.mensajeExito = null; // ⬅️ Y justo después, lo limpiás
+
 
     } catch (error) {
         console.error('Error al mostrar formulario de creación de turno:', error);
@@ -400,7 +482,36 @@ exports.mostrarFormularioCrear = async (req, res) => {
 
 
 // Obtener profesionales por especialidad (Sucursal 1)
+// 🔧 CAMBIAR ESTA FUNCIÓN
 exports.obtenerProfesionales = async (req, res) => {
+    const { id_especialidad } = req.params;
+    const { id_sucursal } = req.query; // 👈 tomarlo como query param opcional
+
+    try {
+        let query = `
+      SELECT p.id_profesional, p.nombre
+      FROM profesionales p
+      JOIN profesionales_especialidades pe ON p.id_profesional = pe.id_profesional
+      WHERE pe.id_especialidad = ? AND p.activo = 1
+    `;
+
+        const params = [id_especialidad];
+
+        // 👉 Si se pasa la sucursal, filtrar por ella también
+        if (id_sucursal) {
+            query += ' AND p.id_sucursal = ?';
+            params.push(id_sucursal);
+        }
+
+        const [profesionales] = await conn.query(query, params);
+        res.json(profesionales);
+    } catch (error) {
+        console.error('Error al obtener profesionales:', error);
+        res.status(500).json({ error: 'Error al obtener profesionales' });
+    }
+};
+
+/*exports.obtenerProfesionales = async (req, res) => {
     const { id_especialidad } = req.params;
     try {
         const [profesionales] = await conn.query(
@@ -423,10 +534,56 @@ exports.obtenerProfesionales = async (req, res) => {
         console.error('Error al obtener profesionales:', error);
         res.status(500).json({ error: 'Error al obtener profesionales' });
     }
-};
-// Obtener horarios disponibles en una semana
+};*/
+
 // Obtener horarios disponibles en una semana
 exports.obtenerHorarios = async (req, res) => {
+    const { idProfesional, idEspecialidad, fechaInicio } = req.params;
+
+    const fechaInicioDate = new Date(`${fechaInicio}T00:00:00`);
+    const fechaFinDate = new Date(fechaInicioDate);
+    fechaFinDate.setDate(fechaInicioDate.getDate() + 6);
+
+    try {
+        const [resultados] = await conn.query(
+            `SELECT 
+        h.id_horarios, 
+        DATE_FORMAT(h.fecha, '%Y-%m-%d') AS fecha,  -- ← esta es la clave
+        h.hora_inicio, 
+        h.hora_fin, 
+        h.estado, 
+        h.disponible
+     FROM horarios h
+     INNER JOIN agendas a ON h.id_agenda = a.id_agenda
+     WHERE a.id_profesional = ? 
+       AND a.id_profesional_especialidad = ?
+       AND h.estado = 'Libre'
+       AND h.disponible = 1
+       AND h.fecha BETWEEN ? AND ? 
+     ORDER BY h.fecha, h.hora_inicio`,
+            [idProfesional, idEspecialidad, fechaInicioDate, fechaFinDate]
+        );
+
+
+        // Agrupación por fecha como string directamente sin toISOString
+        const horariosAgrupados = resultados.reduce((acc, horario) => {
+            const fechaKey = horario.fecha; // ya es un string correcto
+            if (!acc[fechaKey]) {
+                acc[fechaKey] = [];
+            }
+            acc[fechaKey].push(horario);
+            return acc;
+        }, {});
+
+
+        res.status(200).json(horariosAgrupados);
+    } catch (error) {
+        console.error("Error al obtener horarios:", error);
+        res.status(500).json({ message: "Error al obtener horarios disponibles" });
+    }
+};
+
+/*exports.obtenerHorarios = async (req, res) => {
     const { idProfesional, idEspecialidad, fechaInicio } = req.params;
 
     // Calcular el rango de la semana
@@ -463,7 +620,7 @@ exports.obtenerHorarios = async (req, res) => {
         console.error("Error al obtener horarios:", error);
         res.status(500).json({ message: "Error al obtener horarios disponibles" });
     }
-};
+};*/
 
 // Procesar la reserva del turno
 exports.reservarTurno = async (req, res) => {
@@ -590,60 +747,20 @@ exports.reservarTurno = async (req, res) => {
                 console.log('No se encontró el id_horario para actualizar o no se aplicó ningún cambio');
             }
         }
-        res.json({ success: true, mensaje: 'Turno reservado exitosamente' });
+        //req.session.mensajeExito = '✅ ¡Turno reservado exitosamente!';
+
+        // res.redirect('/sacarTurno'); // 🧨 Esto debe ir sí o sí, aunque sea temporal
+
+        req.session.mensajeExito = '✅ ¡Turno reservado exitosamente!';
+        res.redirect('/crear'); // 👈 Esta es la ruta que ya tenés funcionando para mostrar el formulario
+
+
+        //res.json({ success: true, mensaje: 'Turno reservado exitosamente' });
     } catch (error) {
         console.error("Error al reservar turno:", error);
         res.status(500).send("Error al reservar el turno");
     }
 };
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

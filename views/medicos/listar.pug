@@ -1,7 +1,9 @@
 extends ../layout.pug
 
 block contenido
-  h1 Profesionales
+  button.btn.btn-secondary#btn-volver(type="button" onclick="history.back()") ← Volver atrás
+  h1.text-center.mt-4 Profesionales
+
 
   form(action="/medicos/buscar", method="GET")
     .form-group

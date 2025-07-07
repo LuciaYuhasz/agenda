@@ -47,6 +47,14 @@ block contenido
                 label(for="foto_dni" class="form-label") Foto del DNI:
                 input(type="file" class="form-control" name="foto_dni" accept="image/*" required)
 
+              .mb-3
+                label(for="id_sucursal" class="form-label") Sucursal donde trabaja:
+                select(name="id_sucursal" class="form-select" required)
+                  option(value="") Seleccioná una sucursal
+                  each sucursal in sucursales
+                    option(value=sucursal.id_sucursal)= sucursal.nombre
+
+
               button(type="submit" class="btn btn-primary w-100") Registrar
 
             p.text-center.mt-3

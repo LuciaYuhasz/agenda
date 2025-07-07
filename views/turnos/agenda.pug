@@ -1,6 +1,7 @@
 extends ../layout.pug
 
 block contenido
+  button.btn.btn-secondary#btn-volver(type="button" onclick="history.back()") ← Volver atrás
   .container
     //- Título con estilo
     h1.text-center(style="font-family: 'Roboto', sans-serif; font-weight: 700; font-size: 2.5rem; margin-bottom: 30px;")
@@ -18,10 +19,18 @@ block contenido
           th Transferencia
 
       tbody
+        - let fechaActual = '';
         each item in agenda
+          - if (item.fecha !== fechaActual) {
+          -   fechaActual = item.fecha;
+            // Encabezado por fecha
+            tr
+              td(colspan="6", style="background-color: #f0f0f0; font-weight: bold;") #{fechaActual}
+          - }
+
           tr(class= item.tipo === 'ocupado' ? 'table-danger' : 'table-success')
-            td= item.fecha
-            td= item.hora
+            td
+              | #{item.hora.includes('-') ? item.hora : item.hora.slice(0, 5)}
             td= item.paciente || 'N/A'
             td= item.motivo || 'N/A'
             td
@@ -32,6 +41,7 @@ block contenido
             td
               if item.tipo === 'ocupado' 
                 a.btn-transfer(href=`/transfer-turno?id_turno=${item.id_turno}`) 🔄 Transferir turno
+
                 
 
 

@@ -50,8 +50,21 @@ exports.loginAdmin = async (req, res) => {
         }
 
         console.log("Administrador autenticado correctamente");
-        // Guardar la sesión del administrador o redirigir al panel de administrador
-        req.session.adminId = admin.id_usuario; // Ejemplo: almacenar el ID en la sesión
+
+        //req.session.adminId = admin.id_usuario; // Ejemplo: almacenar el ID en la sesión
+        // 👉 Acá guardamos toda la info relevante del usuario
+        /* req.session.usuario = {
+             id_usuario: admin.id_usuario,
+             email: admin.email,
+             id_rol: admin.id_rol
+         };*/
+
+        req.session.user = {
+            id: admin.id_usuario,
+            email: admin.email,
+            id_rol: admin.id_rol
+        };
+
         res.redirect("/administrador"); // Redirige al panel de administrador
     } catch (error) {
         console.error("Error al iniciar sesión como administrador:", error);
@@ -122,55 +135,6 @@ exports.buscarAgenda = async (req, res) => {
     }
 };
 
-
-/*exports.buscarAgenda = async (req, res) => {
-    const { id_profesional, id_especialidad } = req.query;
-
-    try {
-        // Consulta para obtener las agendas
-        const agendaQuery = `
-          SELECT 
-            a.id_agenda, a.id_profesional, a.id_profesional_especialidad,
-            p.nombre AS profesional_nombre, p.apellido AS profesional_apellido,
-            e.nombre AS especialidad_nombre, s.nombre AS sucursal_nombre,
-            a.sobreturnos_maximos
-          FROM agendas a
-          JOIN profesionales p ON a.id_profesional = p.id_profesional
-          JOIN especialidades e ON a.id_profesional_especialidad = e.id_especialidad
-          JOIN sucursales s ON a.id_sucursal = s.id_sucursal
-          WHERE a.id_profesional = ? AND a.id_profesional_especialidad = ?;
-        `;
-
-        const params = [id_profesional, id_especialidad];
-        const [agendas] = await conn.query(agendaQuery, params);
-
-        // Agregar horarios a cada agenda
-        for (let agenda of agendas) {
-            const horariosQuery = `
-              SELECT 
-                fecha, hora_inicio, hora_fin, estado 
-              FROM horarios 
-              WHERE id_agenda = ? 
-              ORDER BY fecha, hora_inicio;
-            `;
-            const [horarios] = await conn.query(horariosQuery, [agenda.id_agenda]);
-
-            // Agrupar horarios por fecha
-            agenda.horarios = horarios.reduce((acc, horario) => {
-                const fecha = horario.fecha;
-                if (!acc[fecha]) acc[fecha] = [];
-                acc[fecha].push(horario);
-                return acc;
-            }, {});
-        }
-
-        res.render('ingreso/administrador/agenda', { agendas });
-
-    } catch (error) {
-        console.error('Error al buscar agendas:', error);
-        res.status(500).send('Hubo un error al buscar agendas.');
-    }
-};*/
 exports.createAgenda = async (req, res) => {
     console.log("Solicitud recibida en createAgenda", req.body);
     const {
@@ -219,6 +183,7 @@ const validarExistencia = async (query, params) => {
     const [rows] = await conn.query(query, params);
     return rows.length > 0;
 };
+// creacion de horarios y redireccion a agenda correspondiente 
 exports.createScheduleBatch = async (req, res) => {
     const { id_agenda, hora_inicio, hora_fin, duracion_turno, rango_fechas_inicio, rango_fechas_fin } = req.body;
 
@@ -227,8 +192,9 @@ exports.createScheduleBatch = async (req, res) => {
     }
 
     try {
-        const startDate = new Date(rango_fechas_inicio);
-        const endDate = new Date(rango_fechas_fin);
+        // Creamos fechas con componentes desglosados para evitar problemas de zona horaria
+        const startDate = new Date(`${rango_fechas_inicio}T00:00:00`);
+        const endDate = new Date(`${rango_fechas_fin}T00:00:00`);
 
         if (startDate > endDate) {
             return res.status(400).send("El rango de fechas no es válido.");
@@ -237,11 +203,29 @@ exports.createScheduleBatch = async (req, res) => {
         const horarios = [];
         const daysOfWeek = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
 
-        for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
-            const localDate = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
-            const currentDay = daysOfWeek[localDate.getDay()];
-            let currentHour = new Date(`${localDate.toISOString().split("T")[0]}T${hora_inicio}`);
-            const endHour = new Date(`${localDate.toISOString().split("T")[0]}T${hora_fin}`);
+        for (let i = 0; i <= (endDate - startDate) / (1000 * 60 * 60 * 24); i++) {
+            const d = new Date(startDate);
+            d.setDate(d.getDate() + i);
+            d.setHours(0, 0, 0, 0); // Aseguramos medianoche local
+
+            const fechaStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+            const currentDay = daysOfWeek[d.getDay()];
+
+            let currentHour = new Date(
+                d.getFullYear(),
+                d.getMonth(),
+                d.getDate(),
+                parseInt(hora_inicio.split(":")[0], 10),
+                parseInt(hora_inicio.split(":")[1], 10)
+            );
+
+            const endHour = new Date(
+                d.getFullYear(),
+                d.getMonth(),
+                d.getDate(),
+                parseInt(hora_fin.split(":")[0], 10),
+                parseInt(hora_fin.split(":")[1], 10)
+            );
 
             while (currentHour < endHour) {
                 const nextHour = new Date(currentHour.getTime() + duracion_turno * 60000);
@@ -250,11 +234,11 @@ exports.createScheduleBatch = async (req, res) => {
                 horarios.push([
                     id_agenda,
                     currentDay,
-                    localDate.toISOString().split("T")[0],
+                    fechaStr,
                     currentHour.toTimeString().split(" ")[0],
                     nextHour.toTimeString().split(" ")[0],
                     duracion_turno,
-                    1 // Estado disponible
+                    1
                 ]);
 
                 currentHour = nextHour;
@@ -270,13 +254,31 @@ exports.createScheduleBatch = async (req, res) => {
             await conn.query(insertQuery, [horarios]);
         }
 
-        // Redirigir directamente a la vista de la agenda
-        res.redirect(`/view-schedule?id_agenda=${id_agenda}`);
+        const [agendaData] = await conn.query(
+            `SELECT id_profesional, id_profesional_especialidad FROM agendas WHERE id_agenda = ?`,
+            [id_agenda]
+        );
+
+        if (agendaData.length === 0) {
+            return res.status(404).send("Agenda no encontrada.");
+        }
+
+        const { id_profesional, id_profesional_especialidad: id_especialidad } = agendaData[0];
+
+        res.redirect(`/buscar-agenda?id_profesional=${id_profesional}&id_especialidad=${id_especialidad}`);
+
     } catch (error) {
         console.error("Error al crear horarios masivos:", error);
         res.status(500).send("Hubo un error al crear los horarios masivamente.");
     }
 };
+
+
+
+
+
+//creo que no uso el metodo siguiente 
+/*
 exports.viewSchedule = async (req, res) => {
     const { id_agenda } = req.query;
 
@@ -320,7 +322,13 @@ exports.viewSchedule = async (req, res) => {
         console.error("Error al obtener las agendas:", error);
         res.status(500).send("Hubo un error al obtener las agendas.");
     }
-};
+};*/
+
+
+
+
+//CHEQUEAR LO COMENTADO ABAJO
+/*
 exports.createSchedule = async (req, res) => {
     const id_agenda = req.query.id_agenda || req.body.id_agenda; // Tomar el id_agenda del query o del formulario
     const { dia_semana, fecha, hora_inicio, hora_fin, duracion_turno } = req.body;
@@ -358,6 +366,8 @@ exports.createSchedule = async (req, res) => {
         res.status(500).send("Hubo un error al crear el horario.");
     }
 };
+*/
+//* Renderiza  desde la agenda articular ara agregar mas horarios.
 exports.showCreateSchedule = async (req, res) => {
     const id_agenda = req.query.id_agenda;
     if (!id_agenda) {
@@ -367,6 +377,8 @@ exports.showCreateSchedule = async (req, res) => {
     // Renderiza la vista pasando el id_agenda
     res.render("ingreso/administrador/crearHorario", { id_agenda });
 };
+
+
 //FIJARME PARA QUE ES ESTE METODO
 exports.listarMedicosParaFormulario = async (req, res) => {
     try {

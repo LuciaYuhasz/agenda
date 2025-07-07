@@ -183,9 +183,12 @@ block contenido
                     console.log(horario)
                     btnHorario.onclick = () => {
                         document.getElementById('horario').value = horario.hora_inicio;
-                        //document.getElementById('fecha').value = horario.fecha;
+                        
                          // ✅ Formatea la fecha antes de asignarla al campo del formulario
-                        document.getElementById('fecha').value = new Date(horario.fecha).toISOString().split('T')[0]; 
+                        //document.getElementById('fecha').value = new Date(horario.fecha).toISOString().split('T')[0]; 
+                        document.getElementById('fecha').value = horario.fecha;
+                        
+
                         document.getElementById('id_horario').value = horario.id_horarios;
                         document.getElementById('btnReservar').disabled = false;
                         console.log("Valores asignados en el frontend:");
@@ -223,10 +226,16 @@ block contenido
 
     
     // Función para formatear la fecha (YYYY-MM-DD a DD/MM/YYYY)
-    function formatearFecha(fechaISO) {
+    /*function formatearFecha(fechaISO) {
      const fecha = new Date(fechaISO);
      return `${fecha.getDate().toString().padStart(2, '0')}/${(fecha.getMonth() + 1).toString().padStart(2, '0')}/${fecha.getFullYear()}`;
+    }*/
+    function formatearFecha(fechaISO) {
+        // Supone que fechaISO viene como 'YYYY-MM-DD'
+      const [anio, mes, dia] = fechaISO.split('-');
+      return `${dia}/${mes}/${anio}`;
     }
+
 
 
    // ✅ Log para debug antes del submit

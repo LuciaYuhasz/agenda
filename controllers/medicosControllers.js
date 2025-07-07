@@ -203,7 +203,12 @@ exports.listarMedicos = async (req, res) => {
             LEFT JOIN especialidades e ON pe.id_especialidad = e.id_especialidad
             GROUP BY p.id_profesional, p.nombre, p.apellido, p.dni, p.activo, p.email, s.nombre
         `);
-        res.render('medicos/listar', { medicos: result });
+        //res.render('medicos/listar', { medicos: result });
+        res.render('medicos/listar', {
+            medicos: result,
+            usuario: req.session.usuario || {}
+        });
+
     } catch (error) {
         console.error('Error al consultar los médicos:', error);
         res.status(500).send('Error al consultar los médicos');

@@ -8,7 +8,8 @@ router.get('/crear', turnosController.mostrarFormularioCrear);
 
 //router.get('/horarios/:id_profesional/:id_especialidad/:offset', turnosController.obtenerHorarios);
 
-router.get('/obtenerHorarios/:id_profesional/:id_especialidad', turnosController.obtenerHorarios);
+//router.get('/obtenerHorarios/:id_profesional/:id_especialidad', turnosController.obtenerHorarios);
+router.get('/obtenerHorarios/:id_profesional/:id_especialidad/:fecha_inicio', turnosController.obtenerHorarios);
 
 // Crear un nuevo turno
 router.post('/crear', turnosController.crearTurno);
@@ -20,6 +21,15 @@ router.get('/agenda/:id_profesional/:id_especialidad', turnosController.mostrarA
 //Rutas para la trasnferencia de turnos 
 router.get("/transfer-turno", turnosController.transferTurno);
 router.post("/confirm-transfer", turnosController.confirmTransfer);
+
+//Ruta para lista de espera 
+router.post('/api/lista-espera', turnosController.agregarListaEspera);
+
+
+
+// Ruta para ver la lista de espera (GET)
+router.get('/lista-espera', turnosController.verListaEspera);
+
 
 
 

@@ -11,7 +11,7 @@ const upload = require('../multerConfig'); // Configuración de multer
 // Rutas para autenticación de pacientes
 // Ruta para renderizar el formulario de registro de pacientes
 router.get('/register', authController.renderRegisterForm);
-//router.get("/register", (req, res) => res.render("ingreso/pacientes/register")); // Vista de registro
+
 router.post(
     "/register",
     upload.single("foto_dni"), // Middleware de multer
@@ -38,7 +38,12 @@ router.post(
     authController.register // Llama al controlador register después de verificar el archivo
 );
 router.get("/login", (req, res) => res.render("ingreso/pacientes/login")); // Vista de login
-router.post("/login", authController.login); // Acción de login
+router.post("/login", (req, res) => authController.login(req, res, 2)); // 2 = Paciente
+
+
+
+
+//router.post("/login", authController.login); // Acción de login
 
 //router.get("/logout", authController.logout); // Logout
 router.get('/sucursales/sucursales', (req, res) => {
@@ -49,9 +54,12 @@ router.get('/sucursales/sucursales', (req, res) => {
 
 // Mostrar el formulario de login para secretarios
 router.get("/secretarios/login", (req, res) => res.render("ingreso/secretarios/login"));
+router.post("/secretarios/login", (req, res) => authController.login(req, res, 3)); // 3 = Secretaria
 
 // Procesar login de secretarios
-router.post("/secretarios/login", authController.login);
+//router.post("/secretarios/login", authController.login);
+// Ruta para renderizar el formulario de registro de secretarios
+router.get('/secretarios/register', authController.renderSecretaryRegisterForm);
 
 // Mostrar el formulario de registro para secretarios
 router.get("/secretarios/register", (req, res) => res.render("ingreso/secretarios/register"));
@@ -78,6 +86,13 @@ router.post(
 
 
 
+router.get('/sucursales/sucursalInterior', (req, res) => {
+    res.render('sucursales/sucursalInterior');
+});
+
+router.get('/sucursales/sucursalCentro', (req, res) => {
+    res.render('sucursales/sucursalCentro');
+});
 
 
 
@@ -97,6 +112,15 @@ router.post("/administrador/login", adminController.loginAdmin); // Acción de l
 
 router.get('/administrador', (req, res) => { res.render('ingreso/administrador/administrador'); });
 
+
+///guarda con esto , fijarme que no me genere problemas 
+router.get('/logout', (req, res) => {
+    req.session.destroy(() => {
+        res.redirect('/'); // O redirigí al login que quieras
+    });
+});
+///
+
 // Rutas para agendas y horarios (administrador)
 
 
@@ -114,7 +138,7 @@ router.get("/create-schedule", adminController.showCreateSchedule);
 router.post("/create-schedule", adminController.createScheduleBatch);
 
 
-router.get("/view-schedule", adminController.viewSchedule);
+//router.get("/view-schedule", adminController.viewSchedule);
 
 
 router.get('/create-agenda', adminController.formCrearAgenda);

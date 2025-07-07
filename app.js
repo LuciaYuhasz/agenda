@@ -61,6 +61,15 @@ app.get('/', (req, res) => {
     res.render('ingreso/index');
 });
 
+/*app.use((req, res, next) => {
+    res.locals.usuario = req.session.usuario || null;
+    next();
+});*/
+app.use((req, res, next) => {
+    res.locals.user = req.session.user || null;
+    next();
+});
+
 
 
 
