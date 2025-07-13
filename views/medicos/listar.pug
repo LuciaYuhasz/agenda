@@ -18,7 +18,8 @@ block contenido
       )
     .d-flex.gap-2.mt-2
       button(type="submit" class="btn btn-primary") Buscar
-      a(href="/medicos/crear" class="btn btn-success") Ingresar Médico
+      if user && user.id_rol === 1
+        a(href="/medicos/crear" class="btn btn-success") Ingresar Médico
 
   .container.mt-4
     h2 Médicos Activos
@@ -59,15 +60,17 @@ block contenido
                   a(href=`/medicos/editar/${medico.id_profesional}` class="btn btn-info btn-sm") Modificar
                   form(action=`/medicos/eliminar/${medico.id_profesional}`, method="POST", style="display:inline;")
                     button(type="submit" class="btn btn-danger btn-sm" onclick="return confirm('¿Estás seguro de que deseas eliminar a este médico?');") Borrar
-                  form(action=`/medicos/agregar-especialidad/${medico.id_profesional}`, method="GET", style="display:inline;")
-                    button(type="submit" class="btn btn-primary btn-sm") Agregar Especialidad
+                  if user && user.id_rol === 1
+                    form(action=`/medicos/agregar-especialidad/${medico.id_profesional}`, method="GET", style="display:inline;")
+                      button(type="submit" class="btn btn-primary btn-sm") Agregar Especialidad
 
               if medico.especialidades.length > 0
                 ul.list-group.list-group-flush.mt-3
                   each especialidad in medico.especialidades
                     li.list-group-item.d-flex.justify-content-between.align-items-center
                       span #{especialidad.nombre} - Matrícula: #{especialidad.matricula}
-                      a(href=`/agenda/${medico.id_profesional}/${especialidad.id_especialidad}` class="btn btn-warning btn-sm") Ver Agenda
+                      if user && user.id_rol === 3
+                        a(href=`/agenda/${medico.id_profesional}/${especialidad.id_especialidad}` class="btn btn-warning btn-sm") Ver Agenda
 
   .container.mt-5
     h2 Médicos Inactivos

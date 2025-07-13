@@ -1,6 +1,7 @@
 extends ../../layout
 
 block contenido
+  button.btn.btn-secondary#btn-volver(type="button" onclick="history.back()") ← Volver atrás
 
   // Recibe desde el controlador
   - const id_profesional_preseleccionado = typeof id_profesional !== 'undefined' ? id_profesional : ''
@@ -9,7 +10,7 @@ block contenido
   - const nombre_profesional_preseleccionado = typeof nombreProfesional !== 'undefined' ? nombreProfesional : ''
 
   .container
-    h1 Reserva de Turno
+    h1.text-center Reserva tu turno 
    
     form(action="/sacarTurno" method="POST") 
 

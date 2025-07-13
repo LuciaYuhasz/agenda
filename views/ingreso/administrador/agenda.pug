@@ -4,6 +4,7 @@ block contenido
   .container
 
     h1.page-title  Administracion
+    button.btn.btn-secondary#btn-volver(type="button" onclick="history.back()") ← Volver atrás
     div.current-period
       h2#periodoActual Semana/Mes actual: 
     // Botones para cambiar semana y mes
@@ -24,7 +25,7 @@ block contenido
 
             // Acciones
             div.agenda-actions
-              a.btn-submit(href=`/create-schedule?id_agenda=${agenda.id_agenda}`) CARGAR NUEVOS HORARIOS
+              a.btn-submit(href=`/create-schedule?id_agenda=${agenda.id_agenda}`) 🕒 CARGAR NUEVOS HORARIOS
               a.btn-danger(href=`/block-schedule?id_agenda=${agenda.id_agenda}`) 🚫 BLOQUEAR HORARIOS
 
             table.schedule-table
@@ -181,4 +182,33 @@ block contenido
           padding: 10px 15px;
           text-decoration: none;
           border-radius: 4px;
+        }
+
+
+          /* Botón para agregar horarios: estilo vibrante */
+        a.btn-submit {
+          background-color: #28a745;       /* Verde intenso */
+          color: #fff;
+          font-weight: bold;
+          padding: 10px 16px;
+          border-radius: 6px;
+          box-shadow: 0 0 5px rgba(40, 167, 69, 0.6);
+          transition: transform 0.2s;
+        }
+        a.btn-submit:hover {
+          transform: scale(1.05);
+        }
+
+        /* Botón para bloquear horarios: estilo de alerta */
+        a.btn-danger {
+          background-color: #dc3545;       /* Rojo fuerte */
+          color: #fff;
+          font-weight: bold;
+          padding: 10px 16px;
+          border-radius: 6px;
+          box-shadow: 0 0 5px rgba(220, 53, 69, 0.6);
+          transition: transform 0.2s;
+        }
+        a.btn-danger:hover {
+          transform: scale(1.05);
         }

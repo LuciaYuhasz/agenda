@@ -155,128 +155,6 @@ exports.crearTurno = async (req, res) => {
 };
 
 
-/*
-exports.mostrarAgenda = async (req, res) => {
-    try {
-        const { id_profesional, id_especialidad } = req.params;
-
-        // Obtener los datos del profesional (nombre, apellido, email)
-        const [profesionalData] = await conn.query(
-            'SELECT p.nombre, p.apellido, p.email ' +
-            'FROM profesionales p ' +
-            'WHERE p.id_profesional = ?',
-            [id_profesional]
-        );
-
-        // Obtener la matrícula del profesional asociada a la especialidad
-        const [matriculaData] = await conn.query(
-            'SELECT pe.matricula ' +
-            'FROM profesionales_especialidades pe ' +
-            'WHERE pe.id_profesional = ? AND pe.id_especialidad = ?',
-            [id_profesional, id_especialidad]
-        );
-
-        // Obtener los datos de la especialidad
-        const [especialidadData] = await conn.query(
-            'SELECT * FROM especialidades WHERE id_especialidad = ?',
-            [id_especialidad]
-        );
-
-        // Verificar que los datos no estén vacíos
-        if (profesionalData.length === 0 || especialidadData.length === 0 || matriculaData.length === 0) {
-            return res.status(404).json({ error: 'Profesional o especialidad no encontrados' });
-        }
-
-        // Obtener todos los turnos ocupados
-        const [turnos] = await conn.query(
-            `SELECT t.*, p.nombre AS paciente_nombre, p.apellido AS paciente_apellido
-            FROM turnos t
-            LEFT JOIN pacientes p ON t.id_paciente = p.id_paciente
-            WHERE t.id_profesional = ? AND t.id_especialidad = ? 
-            ORDER BY t.fecha, t.hora`,
-            [id_profesional, id_especialidad]
-        );
-
-        // Obtener los horarios disponibles
-        const [horarios] = await conn.query(
-            `SELECT h.*
-FROM horarios h
-JOIN agendas a ON h.id_agenda = a.id_agenda
-JOIN profesionales_especialidades pe ON a.id_profesional = pe.id_profesional
-WHERE pe.id_profesional = ? 
-  AND pe.id_especialidad = ? 
-  AND h.estado = 2
-  AND a.id_agenda IN (
-      SELECT id_agenda 
-      FROM agendas 
-      WHERE id_profesional = ? AND id_profesional_especialidad = ?
-  );`, [id_profesional, id_especialidad, id_profesional, id_especialidad]
-
-        );
-
-        // Integrar turnos ocupados y horarios disponibles
-        const agenda = [];
-        // Procesar los turnos ocupados
-        turnos.forEach(turno => {
-            const fechaHora = `${turno.fecha} ${turno.hora}`;
-            agenda.push({
-                id_turno: turno.id_turno, // ✅ Agregar ID del turno
-                fechaHora,
-                fecha: format(new Date(turno.fecha), 'eeee dd MMMM yyyy', { locale: es }),
-                hora: turno.hora,
-                paciente: `${turno.paciente_nombre} ${turno.paciente_apellido}`,
-                motivo: turno.motivo_consulta,
-                estado: turno.estado,
-                tipo: 'ocupado' // Turno ocupado
-            });
-        });
-
-        // Procesar los horarios disponibles
-        horarios.forEach(horario => {
-            const fechaHoraInicio = `${horario.fecha} ${horario.hora_inicio}`;
-            const fechaHoraFin = `${horario.fecha} ${horario.hora_fin}`;
-
-            agenda.push({
-                id_turno: null, // ✅ No tiene ID de turno porque es un horario disponible
-                fechaHora: fechaHoraInicio,
-                fecha: format(new Date(horario.fecha), 'eeee dd MMMM yyyy', { locale: es }),
-                hora: `${horario.hora_inicio} - ${horario.hora_fin}`,
-                paciente: 'Disponible',
-                motivo: 'N/A',
-                estado: 'Disponible',
-                tipo: 'disponible' // Horario disponible
-            });
-        });
-
-
-        // Ordenar la agenda por fechaHora
-        agenda.sort((a, b) => a.fechaHora.localeCompare(b.fechaHora)); // Ordenamos lexicográficamente
-
-        // Ahora pasamos directamente los datos a la vista
-
-        console.log({
-            nombre: profesionalData[0].nombre,
-            apellido: profesionalData[0].apellido,
-            email: profesionalData[0].email,
-            especialidad: especialidadData[0],
-            matricula: matriculaData[0].matricula,
-            agenda: agenda
-        });
-        res.render('turnos/agenda', {
-            nombre: profesionalData[0].nombre,
-            apellido: profesionalData[0].apellido,
-            email: profesionalData[0].email,    // Pasa el correo directamente
-            especialidad: especialidadData[0],  // Especialidad: contiene el nombre de la especialidad
-            matricula: matriculaData[0].matricula,  // Matrícula: que estamos obteniendo
-            agenda: agenda // La agenda combinada de turnos
-        });
-
-
-    } catch (error) {
-        console.error('Error al mostrar la agenda del profesional:', error);
-        res.status(500).send('Error al cargar la agenda del profesional');
-    }
-};*/
 const { format } = require('date-fns');
 const { es } = require('date-fns/locale');
 
@@ -344,6 +222,15 @@ exports.mostrarAgenda = async (req, res) => {
          )`,
             [id_profesional, id_especialidad, id_profesional, id_especialidad]
         );
+        // 👉 Horarios bloqueados
+        const [bloqueos] = await conn.query(
+            `SELECT bh.* 
+   FROM bloqueos_horarios bh
+   JOIN agendas a ON bh.id_agenda = a.id_agenda
+   WHERE a.id_profesional = ? AND a.id_profesional_especialidad = ?`,
+            [id_profesional, id_especialidad]
+        );
+
 
         // 👉 Armar agenda combinada
         const agenda = [];
@@ -382,6 +269,24 @@ exports.mostrarAgenda = async (req, res) => {
                 motivo: 'N/A',
                 estado: 'Disponible',
                 tipo: 'disponible',
+                timestamp: fechaHoraInicio
+            });
+        });
+        bloqueos.forEach(bloqueo => {
+            const horaInicioNormalizada = normalizarHora(bloqueo.hora_inicio);
+            const horaFinNormalizada = normalizarHora(bloqueo.hora_fin);
+            const fechaOriginal = new Date(bloqueo.fecha_bloqueo);
+            const fechaISO = fechaOriginal.toISOString().split('T')[0];
+            const fechaHoraInicio = new Date(`${fechaISO}T${horaInicioNormalizada}`);
+
+            agenda.push({
+                id_turno: null,
+                fecha: '', // se rellenará luego
+                hora: `${horaInicioNormalizada} - ${horaFinNormalizada}`,
+                paciente: 'Bloqueado',
+                motivo: bloqueo.motivo || 'Sin motivo',
+                estado: 'Bloqueado',
+                tipo: 'bloqueado',
                 timestamp: fechaHoraInicio
             });
         });

@@ -203,6 +203,8 @@ block contenido
                       document.getElementById('matricula').value = data.matricula;
                       document.getElementById('especialidad_profesional').value = data.especialidad;
                       obtenerHorarios();
+                      //mostrarBotonAgenda();
+
                      
                   })
                   .catch(error => console.error('Error al obtener datos del profesional:', error));
@@ -332,7 +334,10 @@ block contenido
                   console.log("⚠️ Sin turnos en ninguna semana aún.");
                   if (mensajeNoHorarios) mensajeNoHorarios.style.display = 'block';
                   if (botonListaEspera) botonListaEspera.disabled = false;
-                  if (navegacionFechas) navegacionFechas.style.display = 'none';
+                  if (navegacionFechas) navegacionFechas.style.display = 'flex';
+                  if (botonListaEspera) {
+                    botonListaEspera.disabled = semanasConHorarios.size > 0;
+                  }
                 }
 
                 return;
@@ -402,13 +407,27 @@ block contenido
       }
 
 
-      /*document.addEventListener("DOMContentLoaded", () => {
-        document.getElementById('profesional').addEventListener('change', obtenerHorarios);
-      });*/
+      /*function mostrarBotonAgenda() {
+        const idProfesional = document.getElementById('profesional').value;
+        const idEspecialidad = document.getElementById('id_especialidad').value;
+        const botonAgenda = document.getElementById('btnVerAgenda');
+        const filaBoton = document.getElementById('botonVerAgendaRow');
+
+        if (idProfesional && idEspecialidad) {
+          const urlAgenda = `/agenda/${idProfesional}/${idEspecialidad}`;
+          botonAgenda.href = urlAgenda;
+          filaBoton.style.display = 'block';
+        } else {
+          filaBoton.style.display = 'none';
+        }
+      }*/
+
 
 
     // 🟦 Apertura del formulario. Envia datos por método POST a la ruta "../crear"
-    form(action="../crear" method="POST")
+    //form(action="../crear" method="POST")
+    form(method="POST" action="/crear")
+
       // 🔹 SECCIÓN: Información del Paciente
       .section-paciente
         h3 Información del Paciente
@@ -501,6 +520,11 @@ block contenido
       // 🔹 SECCIÓN: Información del Turno
       .section-turno
         h3 Información del Turno
+
+      .row#botonVerAgendaRow(style="display: none;")
+        .col-md-12.text-center
+          a.btn.btn-outline-info(href="#", id="btnVerAgenda") 📋 Ver Agenda Completa del Profesional
+        
 
       .row.mb-2#navegacionFechas
         .col-md-6.text-start

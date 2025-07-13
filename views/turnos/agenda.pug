@@ -16,33 +16,56 @@ block contenido
           th Paciente
           th Motivo
           th Estado
-          th Transferencia
+          th Transferir turno
 
       tbody
+        
         - let fechaActual = '';
+
         each item in agenda
-          - if (item.fecha !== fechaActual) {
+          - let mostrarFecha = item.fecha !== fechaActual;
+          - if (mostrarFecha) {
           -   fechaActual = item.fecha;
-            // Encabezado por fecha
-            tr
-              td(colspan="6", style="background-color: #f0f0f0; font-weight: bold;") #{fechaActual}
           - }
 
-          tr(class= item.tipo === 'ocupado' ? 'table-danger' : 'table-success')
+          tr(
+            class= item.tipo === 'ocupado' 
+              ? 'table-danger' 
+              : item.tipo === 'bloqueado' 
+                ? 'table-warning' 
+                : 'table-success'
+          )
+            td= mostrarFecha ? item.fecha : '' 
             td
               | #{item.hora.includes('-') ? item.hora : item.hora.slice(0, 5)}
             td= item.paciente || 'N/A'
             td= item.motivo || 'N/A'
             td
               if item.tipo === 'ocupado'
-                span(style="color: red;") Ocupado
+                //span(style="color: red;") Ocupado
+                span(style="color: red;") #{item.estado} 
+                if item.estado === 'Reservada'
+                a.btn.btn-sm.btn-warning.ml-2(
+                  href=`/crear?sobreturno=1&id_turno_base=${item.id_turno}&hora=${item.hora}&fecha=${item.fecha}`
+
+                ) ➕ Sobreturno
+
+                  //a.btn.btn-sm.btn-warning.ml-2(href=`/sobreturno/nuevo?id_turno_base=${item.id_turno}`) ➕ Sobreturno
+              else if item.tipo === 'bloqueado'
+                span(style="color: orange;") Bloqueado
               else
                 span(style="color: green;") Disponible
             td
               if item.tipo === 'ocupado' 
-                a.btn-transfer(href=`/transfer-turno?id_turno=${item.id_turno}`) 🔄 Transferir turno
+                a.btn-transfer(href=`/transfer-turno?id_turno=${item.id_turno}`) 🔄
+              else if item.tipo === 'bloqueado'
+                | 🔒
+
+
+
 
                 
+
 
 
                 

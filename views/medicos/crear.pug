@@ -2,7 +2,9 @@ extends ../layout
 
 block contenido
     .container
-        h2 Agregar Médico
+        h2.text-center.mt-4 Agregar Médico
+        button.btn.btn-secondary#btn-volver(type="button" onclick="history.back()") ← Volver atrás
+        
         form(action="/medicos", method="post")
             .mb-3
                 label(for="nombre", class="form-label") Nombre:
