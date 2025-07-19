@@ -1,0 +1,24 @@
+extends ../layout.pug
+
+block contenido
+  .container
+    h1 Lista de Espera por Agenda
+
+    if listaAgrupadaPorAgenda.length === 0
+      p.text-muted No hay pacientes en lista de espera.
+    else
+      each grupo in listaAgrupadaPorAgenda
+        .card.mb-4
+          .card-header.bg-primary.text-white
+            h5.mb-0 #{grupo.nombre_profesional} #{grupo.apellido_profesional} - #{grupo.especialidad}
+          .card-body
+            table.table.table-hover
+              thead
+                tr
+                  th Paciente
+                  th DNI
+              tbody
+                each item in grupo.items
+                  tr
+                    td #{item.nombre_paciente} #{item.apellido_paciente}
+                    td #{item.dni}
