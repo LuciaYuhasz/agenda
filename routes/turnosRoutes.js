@@ -28,6 +28,11 @@ router.post('/api/lista-espera', turnosController.agregarListaEspera);
 router.get('/lista-espera', turnosController.verListaEspera);
 
 
+//probando para el modal
+router.get('/api/agenda/:id_profesional/:id_especialidad', turnosController.obtenerAgendaJson);
+
+
+
 
 
 module.exports = router;

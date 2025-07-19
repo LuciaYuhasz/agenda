@@ -1,5 +1,6 @@
 extends ../layout.pug
 block contenido
+ 
 
   .container
     meta(charset="UTF-8")
@@ -196,14 +197,9 @@ block contenido
                   })
                   .then(data => {
                       console.log('Datos del profesional:', data); // Log de datos del profesional
-                      document.getElementById('nombre_profesional').value = data.nombre_profesional;
-                      document.getElementById('apellido_profesional').value = data.apellido_profesional;
-                      document.getElementById('dni_profesional').value = data.dni;
-                      document.getElementById('email_profesional').value = data.email;
-                      document.getElementById('matricula').value = data.matricula;
-                      document.getElementById('especialidad_profesional').value = data.especialidad;
+                      
                       obtenerHorarios();
-                      //mostrarBotonAgenda();
+                     
 
                      
                   })
@@ -406,27 +402,166 @@ block contenido
         }
       }
 
+      function mostrarBotonAgenda() { 
+        console.log("🔵 Entró a mostrarBotonAgenda()");
+        
+        const idProf = document.getElementById('profesional')?.value;
+        const idEsp = document.getElementById('id_especialidad')?.value;
 
-      /*function mostrarBotonAgenda() {
-        const idProfesional = document.getElementById('profesional').value;
-        const idEspecialidad = document.getElementById('id_especialidad').value;
-        const botonAgenda = document.getElementById('btnVerAgenda');
-        const filaBoton = document.getElementById('botonVerAgendaRow');
+        if (idProf && idEsp) {
+          fetch(`/api/agenda/${idProf}/${idEsp}?semana=actual`)
+            .then(response => response.json())
+            .then(data => {
+              renderizarAgendaEnModal(data);
 
-        if (idProfesional && idEspecialidad) {
-          const urlAgenda = `/agenda/${idProfesional}/${idEspecialidad}`;
-          botonAgenda.href = urlAgenda;
-          filaBoton.style.display = 'block';
-        } else {
-          filaBoton.style.display = 'none';
+              const modalElement = document.getElementById('agendaModal');
+              console.log("🟣 Modal encontrado en el DOM:", modalElement);
+
+              if (!modalElement) {
+                console.error("❌ No se encontró el modal en el DOM");
+                return;
+              }
+
+              // ✅ Mostrar el modal solo con JavaScript puro
+              modalElement.classList.remove('hidden');
+              console.log("✅ Modal mostrado sin Bootstrap");
+            })
+            .catch(error => console.error('Error al cargar la agenda:', error));
         }
-      }*/
+      }
 
+        function renderizarAgendaEnModal(agenda) {
+          console.log("🟡 Entró a renderizarAgendaEnModal()");
+          console.log("✅ Agenda recibida desde backend:", agenda);
+
+          if (!Array.isArray(agenda)) {
+            console.error("❌ Error: la agenda no es un array. Respuesta recibida:", agenda);
+            document.getElementById("agendaModalBody").innerHTML = `
+              <div class="alert alert-danger">
+                No se pudo cargar la agenda. Verificá el servidor.
+              </div>
+            `;
+            return;
+          }
+
+          let html = `
+            <table class="table table-bordered">
+              <thead>
+                <tr>
+                  <th>Fecha</th>
+                  <th>Hora</th>
+                  <th>Estado</th>
+                  <th>Acción</th>
+                </tr>
+              </thead>
+              <tbody>
+          `;
+
+          let fechaActual = '';
+          agenda.forEach(item => {
+            const mostrarFecha = item.fecha !== fechaActual;
+            if (mostrarFecha) fechaActual = item.fecha;
+
+            const claseFila =
+              item.tipo === 'ocupado' ? 'table-danger' :
+              item.tipo === 'bloqueado' ? 'table-warning' :
+              'table-success';
+
+            const fechaFormateada = new Date(item.fecha).toISOString().slice(0, 10);
+            const horaFormateada = item.hora.includes('-')
+              ? item.hora.split(' - ')[0]
+              : item.hora.slice(0, 5);
+
+            html += `
+              <tr class="${claseFila}">
+                <td>${mostrarFecha ? fechaFormateada : ''}</td>
+                <td>${horaFormateada}</td>
+                <td>${item.estado}</td>
+                <td>
+                  <button
+                    type="button"
+                    class="btn btn-sm btn-warning"
+                    onclick="seleccionarSobreturno(this)"
+                    data-hora="${item.hora}"
+                    data-fecha="${item.fecha}"
+                    data-id-turno="${item.id_turno}"
+                  >
+                    ➕ Sobreturno
+                  </button>
+                </td>
+              </tr>
+            `;
+          }); // ✅ cierre correcto del forEach
+
+          html += `
+              </tbody>
+            </table>
+          `;
+
+          document.getElementById("agendaModalBody").innerHTML = html;
+        }
+
+
+      document.addEventListener("DOMContentLoaded", () => {
+        const botonMostrarAgenda = document.getElementById("btnMostrarAgenda");
+
+        if (botonMostrarAgenda) {
+          botonMostrarAgenda.addEventListener("click", () => {
+            console.log("🟢 Botón 'Mostrar Agenda' fue clickeado");
+            mostrarBotonAgenda();
+          });
+        }
+      });
+
+
+
+      function seleccionarSobreturno(boton) {
+        const hora = boton.dataset.hora;
+        const fechaISO = boton.dataset.fecha; // 🟠 viene como '2025-07-18T03:00:00.000Z'
+        const idTurnoBase = boton.dataset.idTurno;
+
+        // ✅ Convertir a formato 'YYYY-MM-DD'
+        const fechaFormateada = new Date(fechaISO).toISOString().slice(0, 10);
+
+        console.log("🟠 Sobreturno seleccionado:", { hora, fechaOriginal: fechaISO, fechaFormateada, idTurnoBase });
+
+        //document.getElementById('horario').value = hora;
+        const horaInicio = hora.split(' - ')[0] + ':00';
+        document.getElementById('horario').value = horaInicio;
+
+        document.getElementById('fecha').value = fechaFormateada; // 👈 CORREGIDO
+
+        console.log("📤 Fecha insertada en input:", document.getElementById('fecha').value);
+
+        let campoSobreturno = document.querySelector('input[name="sobreturno"]');
+        let campoBase = document.querySelector('input[name="id_turno_base"]');
+
+        if (!campoSobreturno) {
+          campoSobreturno = document.createElement('input');
+          campoSobreturno.type = 'hidden';
+          campoSobreturno.name = 'sobreturno';
+          campoSobreturno.value = '1';
+          document.querySelector('form').appendChild(campoSobreturno);
+        } else {
+          campoSobreturno.value = '1';
+        }
+
+        if (!campoBase) {
+          campoBase = document.createElement('input');
+          campoBase.type = 'hidden';
+          campoBase.name = 'id_turno_base';
+          campoBase.value = idTurnoBase;
+          document.querySelector('form').appendChild(campoBase);
+        } else {
+          campoBase.value = idTurnoBase;
+        }
+      }
 
 
     // 🟦 Apertura del formulario. Envia datos por método POST a la ruta "../crear"
     //form(action="../crear" method="POST")
     form(method="POST" action="/crear")
+
 
       // 🔹 SECCIÓN: Información del Paciente
       .section-paciente
@@ -494,38 +629,15 @@ block contenido
           label(for="profesional") Seleccione un profesional
           select.form-control(name="id_profesional" id="profesional" onchange="obtenerDatosProfesional()" required)
             option(value="") Seleccione un profesional
-        .row
-          .col-md-6
-            label(for="nombre_profesional") Nombre del Profesional:
-            input.form-control(type="text" id="nombre_profesional" readonly)
-          .col-md-6
-            label(for="apellido_profesional") Apellido del Profesional:
-            input.form-control(type="text" id="apellido_profesional" readonly)
-        .row
-          .col-md-6
-            label(for="dni_profesional") DNI del Profesional:
-            input.form-control(type="text" id="dni_profesional" readonly)
-          .col-md-6
-            label(for="email_profesional") Email del Profesional:
-            input.form-control(type="text" id="email_profesional" readonly)
-        .row
-          .col-md-6
-            label(for="matricula") Matrícula:
-            input.form-control(type="text" id="matricula" readonly)
-          .col-md-6
-            label(for="especialidad_profesional") Especialidad:
-            input.form-control(type="text" id="especialidad_profesional" readonly)
+
         hr
 
       // 🔹 SECCIÓN: Información del Turno
       .section-turno
         h3 Información del Turno
 
-      .row#botonVerAgendaRow(style="display: none;")
-        .col-md-12.text-center
-          a.btn.btn-outline-info(href="#", id="btnVerAgenda") 📋 Ver Agenda Completa del Profesional
-        
-
+      //button.btn.btn-info(type="button", id="btnMostrarAgenda") Para sobreturno: Mostrar Agenda Semanal 
+    
       .row.mb-2#navegacionFechas
         .col-md-6.text-start
           .btn-group
@@ -546,7 +658,7 @@ block contenido
               tr
                 th(style="width: 20%") Fecha
                 th Horarios
-                input(type="hidden" name="fecha" id="fecha")
+                //input(type="hidden" name="fecha" id="fecha")
             tbody
 
         // ❗ Bloque centrado de “No hay horarios”
@@ -554,23 +666,12 @@ block contenido
         p.text-danger No hay horarios disponibles esta semana.
         button#btnListaEspera.btn.btn-outline-warning.btn-sm.mt-2(type="button" onclick="agregarListaEspera()" disabled) Agregar a Lista de Espera
 
-
-
-
       .row
-        .col-md-6
-          // 📋 Estado del turno (por defecto "Confirmado")
-          label(for="estado") Estado:
+        .col-md-6           
           select.form-control(name="estado" id="estado")
-            option(value="No disponible") No disponible
-            option(value="Libre") Libre
-            option(value="Reservada") Reservada
-            option(value="Confirmado", selected) Confirmado
-            option(value="Cancelado") Cancelado
-            option(value="Ausente") Ausente
-            option(value="Presente") Presente
-            option(value="En consulta") En consulta
-            option(value="Atendido") Atendido
+            each estado in estadoOptions
+              option(value=estado selected=(estado === 'Confirmado') ? true : false)= estado
+
         .col-md-6
           // 📝 Campo donde se describe el motivo del turno
           label(for="motivo_consulta") Motivo de Consulta:
@@ -582,17 +683,32 @@ block contenido
           // 📌 Campos ocultos que almacenan datos del horario seleccionado
           input(type="hidden" name="horario" id="horario")
           input(type="hidden" name="id_horario" id="id_horario")
+          input(type="hidden" name="fecha" id="fecha")
+ 
 
       .row
         .col-md-12
           br
-          // 🔘 Opción de marcar como sobreturno
-          label(for="sobreturno") Sobreturno:
-          input.form-check-input(type="checkbox" name="sobreturno" id="sobreturno" value="1")
-          label(for="sobreturno") Marcar si es un sobreturno
-          // 🟢 Botón final para enviar el formulario y guardar el turno
+          // 🔘SOBRETURNO
           button.btn.btn-primary(type="submit") Guardar Turno
+          button.btn.btn-info(type="button", id="btnMostrarAgenda") Para sobreturno: Mostrar Agenda Semanal 
 
+
+ 
+
+  //- Modal personalizado
+  #agendaModal.modal-custom.hidden
+    .modal-content-custom
+      .modal-header-custom
+        
+        //button#btnCerrarModal.close-btn X
+      .modal-body#agendaModalBody
+        // Aquí se cargará la agenda
+      .modal-footer
+        //button#btnCerrarFooter.footer-close-btn Cerrar
+
+
+ 
 
 
 

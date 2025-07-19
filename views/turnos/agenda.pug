@@ -45,12 +45,7 @@ block contenido
                 //span(style="color: red;") Ocupado
                 span(style="color: red;") #{item.estado} 
                 if item.estado === 'Reservada'
-                a.btn.btn-sm.btn-warning.ml-2(
-                  href=`/crear?sobreturno=1&id_turno_base=${item.id_turno}&hora=${item.hora}&fecha=${item.fecha}`
 
-                ) ➕ Sobreturno
-
-                  //a.btn.btn-sm.btn-warning.ml-2(href=`/sobreturno/nuevo?id_turno_base=${item.id_turno}`) ➕ Sobreturno
               else if item.tipo === 'bloqueado'
                 span(style="color: orange;") Bloqueado
               else
