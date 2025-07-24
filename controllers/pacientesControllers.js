@@ -460,7 +460,7 @@ exports.mostrarFormularioCrear = async (req, res) => {
         // Renderizar la vista con todos los datos necesarios
         console.log("💬 Mensaje desde sesión:", req.session.mensajeExito);
 
-        res.render('ingreso/pacientes/sacarTurno', {
+        /*res.render('ingreso/pacientes/sacarTurno', {
             especialidades,
             id_profesional,
             id_especialidad,
@@ -469,7 +469,20 @@ exports.mostrarFormularioCrear = async (req, res) => {
             nombreProfesional,
             mensajeExito: req.session.mensajeExito // ⬅️ Acá lo incorporás
         });
-        req.session.mensajeExito = null; // ⬅️ Y justo después, lo limpiás
+        req.session.mensajeExito = null; // ⬅️ Y justo después, lo limpiás*/
+        const mensaje = req.session.mensajeExito;
+        req.session.mensajeExito = null; // primero lo guardás, después lo borrás
+
+        res.render('ingreso/pacientes/sacarTurno', {
+            especialidades,
+            id_profesional,
+            id_especialidad,
+            id_sucursal,
+            nombreEspecialidad,
+            nombreProfesional,
+            mensajeExito: mensaje
+        });
+
 
 
     } catch (error) {
@@ -692,7 +705,7 @@ exports.reservarTurno = async (req, res) => {
         return res.status(400).json({ error: 'Formato de hora incorrecto, debe ser HH:MM:SS' });
     }
     try {
-        const estado = 'confirmado';
+        const estado = 'reservado';
         const sobreturno = 0; // <-- Valor fijo (no sobreturno)
 
         const agendaQuery = `
@@ -747,15 +760,36 @@ exports.reservarTurno = async (req, res) => {
                 console.log('No se encontró el id_horario para actualizar o no se aplicó ningún cambio');
             }
         }
-        //req.session.mensajeExito = '✅ ¡Turno reservado exitosamente!';
 
-        // res.redirect('/sacarTurno'); // 🧨 Esto debe ir sí o sí, aunque sea temporal
+        const [profesionalResult] = await conn.query(
+            'SELECT nombre, apellido FROM profesionales WHERE id_profesional = ?',
+            [id_profesional]
+        );
+        const nombreProfesional = profesionalResult.length > 0
+            ? `${profesionalResult[0].nombre} ${profesionalResult[0].apellido}`
+            : 'Profesional desconocido';
+
+        const [especialidadResult] = await conn.query(
+            'SELECT nombre FROM especialidades WHERE id_especialidad = ?',
+            [id_especialidad]
+        );
+        const nombreEspecialidad = especialidadResult.length > 0
+            ? especialidadResult[0].nombre
+            : 'Especialidad desconocida';
 
         req.session.mensajeExito = '✅ ¡Turno reservado exitosamente!';
-        res.redirect('/crear'); // 👈 Esta es la ruta que ya tenés funcionando para mostrar el formulario
+        req.session.nombreProfesional = nombreProfesional;
+        req.session.nombreEspecialidad = nombreEspecialidad;
+        req.session.fechaTurno = fecha;
+        req.session.horarioTurno = horario;
+
+        res.redirect('/sacarTurno?exito=1');
 
 
-        //res.json({ success: true, mensaje: 'Turno reservado exitosamente' });
+
+
+
+
     } catch (error) {
         console.error("Error al reservar turno:", error);
         res.status(500).send("Error al reservar el turno");

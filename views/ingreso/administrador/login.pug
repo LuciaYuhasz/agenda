@@ -1,6 +1,7 @@
 extends ../../layout.pug
 
 block contenido
+  button.btn.btn-secondary#btn-volver(type="button" onclick="history.back()") ← Volver atrás
   .container
     html(lang="es")
       head
@@ -21,7 +22,7 @@ block contenido
       body
         .container
           .login-container
-            h1.text-center.mb-4 Login
+            h1.text-center.mb-4 Login Administrador
             form(action="/administrador/login" method="POST")
               .mb-3
                 label(for="email" class="form-label") Email:

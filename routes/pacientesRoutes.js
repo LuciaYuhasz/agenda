@@ -63,4 +63,24 @@ router.get('/api/profesionales', pacientesController.obtenerProfesionales);
 // POST para la ruta /sacarTurno del paciente
 router.post('/sacarTurno', pacientesController.reservarTurno);
 
+//obtener datos  de confirmacion de turno para mostrarse en el alert 
+router.get('/sacarTurno', (req, res) => {
+    const mensajeJS = req.query.exito === '1' ? req.session.mensajeExito : null;
+
+    res.render('ingreso/pacientes/sacarTurno', {
+        mensajeJS,
+        nombreProfesional: req.session.nombreProfesional,
+        nombreEspecialidad: req.session.nombreEspecialidad,
+        fechaTurno: req.session.fechaTurno,
+        horarioTurno: req.session.horarioTurno,
+    });
+    req.session.mensajeExito = null;
+    req.session.nombreProfesional = null;
+    req.session.nombreEspecialidad = null;
+    req.session.fechaTurno = null;
+    req.session.horarioTurno = null;
+
+});
+
+
 module.exports = router;

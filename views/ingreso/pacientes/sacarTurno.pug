@@ -10,6 +10,10 @@ block contenido
   - const nombre_profesional_preseleccionado = typeof nombreProfesional !== 'undefined' ? nombreProfesional : ''
 
   .container
+
+    //if mensajeExito
+      .alert.alert-success(role="alert")= mensajeExito
+
     h1.text-center Reserva tu turno 
    
     form(action="/sacarTurno" method="POST") 
@@ -77,10 +81,37 @@ block contenido
         input.form-control(type="file" name="documento" id="documento" accept="image/*")
         //button.btn.btn-primary(type="submit") Reservar Turno
         button.btn.btn-primary(type="submit" id="btnReservar" disabled) Reservar Turno
-        
 
+    // Mostrar detalles del turno
+    
+  if mensajeExito && nombreProfesional && nombreEspecialidad && fechaTurno && horarioTurno
+    p
+      | Turno reservado con:
+      | Profesional: #{nombreProfesional}
+      | Especialidad: #{nombreEspecialidad}
+      | Fecha: #{fechaTurno}
+      | Horario: #{horarioTurno}
+                  
   // Scripts de frontend
+  script.  
+
+    const nombreProfesional = !{JSON.stringify(nombreProfesional)};
+    const nombreEspecialidad = !{JSON.stringify(nombreEspecialidad)};
+    const fechaTurno = !{JSON.stringify(fechaTurno)};
+    const horarioTurno = !{JSON.stringify(horarioTurno)};
+    window.addEventListener('DOMContentLoaded', function () {
+      alert(`✅ ¡Turno reservado exitosamente!\n
+            Profesional: ${nombreProfesional}\n
+            Especialidad: ${nombreEspecialidad}\n
+            Fecha: ${fechaTurno}\n
+            Horario: ${horarioTurno}`);
+
+      window.location.href = '/';
+    });
+
   script.
+
+  
     const especialidades = !{JSON.stringify(especialidades)};
     let inicioSemana = new Date(); // Fecha inicial de la semana actual
     let finSemana = new Date();
@@ -117,8 +148,6 @@ block contenido
       if (!document.getElementById("id_profesional").value) {
         select.innerHTML = '<option value="" disabled selected>Seleccione un profesional</option>';
       }
-
-      //select.innerHTML = '<option value="" disabled selected>Seleccione un profesional</option>';
       
 
       if (id_especialidad) {
@@ -226,11 +255,7 @@ block contenido
     }
 
     
-    // Función para formatear la fecha (YYYY-MM-DD a DD/MM/YYYY)
-    /*function formatearFecha(fechaISO) {
-     const fecha = new Date(fechaISO);
-     return `${fecha.getDate().toString().padStart(2, '0')}/${(fecha.getMonth() + 1).toString().padStart(2, '0')}/${fecha.getFullYear()}`;
-    }*/
+    
     function formatearFecha(fechaISO) {
         // Supone que fechaISO viene como 'YYYY-MM-DD'
       const [anio, mes, dia] = fechaISO.split('-');

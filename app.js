@@ -11,7 +11,7 @@ const session = require('express-session');
 app.use(session({
     secret: 'mi_secreto', // Cambiar por un valor seguro
     resave: false,
-    saveUninitialized: false,
+    saveUninitialized: true,
 }));
 
 const isAuthenticated = (req, res, next) => {
