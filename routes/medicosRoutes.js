@@ -22,7 +22,6 @@ router.post('/medicos/editar/:id', medicosController.modificarMedico);
 
 
 // Ruta para obtener profesionales según la especialidad
-//router.get('/profesionales/:id_especialidad', medicosController.obtenerProfesionalesPorEspecialidad);
 router.get('/api/profesionales/:id_especialidad', medicosController.obtenerProfesionalesPorEspecialidad);
 
 //ruta para obtener las especilidades 
@@ -47,11 +46,5 @@ router.post('/medicos/eliminar-especialidad/:id_profesional/:id_especialidad', m
 
 // Ruta para agregar la especialidad
 router.post('/medicos/agregar-especialidad/:id', medicosController.agregarEspecialidad);
-
-
-
-
-
-
 
 module.exports = router;

@@ -2,7 +2,8 @@ extends ../layout.pug
 
 block contenido
   .container
-    h1 Lista de Espera por Agenda
+    button.btn.btn-secondary#btn-volver(type="button" onclick="history.back()") ← Volver atrás
+    h1.text-center Lista de Espera por Agenda
 
     if listaAgrupadaPorAgenda.length === 0
       p.text-muted No hay pacientes en lista de espera.

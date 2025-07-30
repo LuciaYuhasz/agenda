@@ -443,6 +443,15 @@ block contenido
             `;
             return;
           }
+            
+          if (agenda.length === 0) {
+            document.getElementById("agendaModalBody").innerHTML = `
+              <div class="alert alert-info">
+                No hay turnos disponibles en este rango.
+              </div>
+            `;
+            return;
+          }
 
           let html = `
             <table class="table table-bordered">

@@ -8,7 +8,7 @@ const bcrypt = require('bcrypt');
 //  CRUD DE PACIENTES
 //===========================================================//
 
-// Mostrar formulario para registrar un nuevo paciente
+// Mostrar formulario para registrar un nuevo paciente desde la secretaria
 
 exports.mostrarFormularioCreate = async (req, res) => {
     const [obrasSociales] = await conn.query("SELECT id_obra_social, nombre FROM obras_sociales ORDER BY nombre ASC");
@@ -129,19 +129,22 @@ exports.mostrarFormularioModificar = async (req, res) => {
 
     try {
         const paciente = await pacientesModel.obtenerPacientePorId(id);
-        res.render('pacientes/modificar', { paciente });
+        const obras_sociales = await pacientesModel.obtenerObrasSociales();
+
+        res.render('pacientes/modificar', { paciente, obras_sociales });
     } catch (error) {
         console.error('Error al obtener los datos del paciente:', error);
         res.status(500).send('Error al obtener los datos del paciente');
     }
 };
+
 // Modificar los datos de un paciente
 exports.modificarPaciente = async (req, res) => {
     const { id } = req.params;
-    const { nombre, apellido, dni, obra_social, telefono, email } = req.body;
+    const { nombre, apellido, dni, id_obra_social, telefono, email } = req.body;
 
     try {
-        await pacientesModel.modificarPaciente(id, nombre, apellido, dni, obra_social, telefono, email);
+        await pacientesModel.modificarPaciente(id, nombre, apellido, dni, id_obra_social, telefono, email);
         res.redirect('/pacientes?mensaje=Paciente%20modificado%20correctamente');
     } catch (error) {
         console.error('Error al modificar los datos del paciente:', error);
@@ -161,26 +164,7 @@ exports.cambiarEstadoInactivo = async (req, res) => {
     }
 };
 // Buscar pacientes por nombre, apellido o DNI
-/*
-exports.buscarpaciente = async (req, res) => {
-    const query = req.query.query;
 
-    try {
-        const [pacientes] = await conn.query(`
-            SELECT id_paciente, nombre, apellido, dni, obra_social, telefono, email
-FROM pacientes
-WHERE (nombre LIKE ? OR apellido LIKE ? OR dni LIKE ?)
-AND activo = 1;
-           
-        `, [`%${query}%`, `%${query}%`, `%${query}%`]);
-
-        // Asegúrate de que se devuelvan resultados
-        res.json(pacientes || []);
-    } catch (error) {
-        console.error('Error al buscar pacientes:', error);
-        res.status(500).json({ error: error.message }); // Proporcionar más información del error
-    }
-};*/
 exports.buscarpaciente = async (req, res) => {
     const query = req.query.query;
 
@@ -376,46 +360,6 @@ exports.login = async (req, res, expectedRole) => {
 //===========================================================//
 // TURNO - PACIENTE SELECCIONA HORARIO
 //===========================================================//
-/*exports.mostrarFormularioCrear = async (req, res) => {
-    try {
-        const { id_profesional, id_especialidad } = req.query;
-
-        // Cargar todas las especialidades para el autocompletado
-        const [especialidades] = await conn.query('SELECT id_especialidad, nombre FROM especialidades');
-
-        // Obtener el nombre de la especialidad seleccionada
-        let nombreEspecialidad = '';
-        if (id_especialidad) {
-            const [resultado] = await conn.query('SELECT nombre FROM especialidades WHERE id_especialidad = ?', [id_especialidad]);
-            if (resultado.length > 0) {
-                nombreEspecialidad = resultado[0].nombre;
-            }
-        }
-
-        // Obtener el nombre del profesional seleccionado
-        let nombreProfesional = '';
-        if (id_profesional) {
-            const [profesional] = await conn.query('SELECT nombre FROM profesionales WHERE id_profesional = ?', [id_profesional]);
-            if (profesional.length > 0) {
-                nombreProfesional = profesional[0].nombre;
-            }
-        }
-
-        res.render('ingreso/pacientes/sacarTurno', {
-            especialidades,
-            id_profesional,
-            id_especialidad,
-            nombreEspecialidad,
-            nombreProfesional
-        });
-    } catch (error) {
-        console.error('Error al mostrar formulario de creación de turno:', error);
-        res.status(500).send('Error al cargar el formulario de creación de turno');
-    }
-};*/
-
-
-
 
 exports.mostrarFormularioCrear = async (req, res) => {
     try {
@@ -460,16 +404,7 @@ exports.mostrarFormularioCrear = async (req, res) => {
         // Renderizar la vista con todos los datos necesarios
         console.log("💬 Mensaje desde sesión:", req.session.mensajeExito);
 
-        /*res.render('ingreso/pacientes/sacarTurno', {
-            especialidades,
-            id_profesional,
-            id_especialidad,
-            id_sucursal,
-            nombreEspecialidad,
-            nombreProfesional,
-            mensajeExito: req.session.mensajeExito // ⬅️ Acá lo incorporás
-        });
-        req.session.mensajeExito = null; // ⬅️ Y justo después, lo limpiás*/
+
         const mensaje = req.session.mensajeExito;
         req.session.mensajeExito = null; // primero lo guardás, después lo borrás
 
@@ -490,9 +425,6 @@ exports.mostrarFormularioCrear = async (req, res) => {
         res.status(500).send('Error al cargar el formulario de creación de turno');
     }
 };
-
-
-
 
 // Obtener profesionales por especialidad (Sucursal 1)
 // 🔧 CAMBIAR ESTA FUNCIÓN
@@ -523,31 +455,6 @@ exports.obtenerProfesionales = async (req, res) => {
         res.status(500).json({ error: 'Error al obtener profesionales' });
     }
 };
-
-/*exports.obtenerProfesionales = async (req, res) => {
-    const { id_especialidad } = req.params;
-    try {
-        const [profesionales] = await conn.query(
-            `SELECT 
-                p.id_profesional, 
-                p.nombre 
-            FROM 
-                profesionales p
-            JOIN 
-                profesionales_especialidades pe ON p.id_profesional = pe.id_profesional
-            WHERE 
-                pe.id_especialidad = ? 
-                AND p.activo = 1 
-                AND p.id_sucursal = 1`,
-            [id_especialidad]
-        );
-
-        res.json(profesionales);
-    } catch (error) {
-        console.error('Error al obtener profesionales:', error);
-        res.status(500).json({ error: 'Error al obtener profesionales' });
-    }
-};*/
 
 // Obtener horarios disponibles en una semana
 exports.obtenerHorarios = async (req, res) => {
@@ -595,45 +502,6 @@ exports.obtenerHorarios = async (req, res) => {
         res.status(500).json({ message: "Error al obtener horarios disponibles" });
     }
 };
-
-/*exports.obtenerHorarios = async (req, res) => {
-    const { idProfesional, idEspecialidad, fechaInicio } = req.params;
-
-    // Calcular el rango de la semana
-    const fechaInicioDate = new Date(fechaInicio);
-    const fechaFinDate = new Date(fechaInicioDate);
-    fechaFinDate.setDate(fechaInicioDate.getDate() + 6);
-
-    try {
-        const [resultados] = await conn.query(
-            `SELECT h.id_horarios, h.fecha, h.hora_inicio, h.hora_fin, h.estado, h.disponible
-         FROM horarios h
-         INNER JOIN agendas a ON h.id_agenda = a.id_agenda
-         WHERE a.id_profesional = ? 
-           AND a.id_profesional_especialidad = ?
-           AND h.estado = 'Libre'
-           AND h.disponible = 1
-           AND h.fecha BETWEEN ? AND ? 
-         ORDER BY h.fecha, h.hora_inicio`,
-            [idProfesional, idEspecialidad, fechaInicioDate, fechaFinDate]
-        );
-
-        // Agrupación por fecha en formato YYYY-MM-DD
-        const horariosAgrupados = resultados.reduce((acc, horario) => {
-            const fechaKey = new Date(horario.fecha).toISOString().split('T')[0];
-            if (!acc[fechaKey]) {
-                acc[fechaKey] = [];
-            }
-            acc[fechaKey].push(horario);
-            return acc;
-        }, {});
-
-        res.status(200).json(horariosAgrupados);
-    } catch (error) {
-        console.error("Error al obtener horarios:", error);
-        res.status(500).json({ message: "Error al obtener horarios disponibles" });
-    }
-};*/
 
 // Procesar la reserva del turno
 exports.reservarTurno = async (req, res) => {
@@ -795,10 +663,6 @@ exports.reservarTurno = async (req, res) => {
         res.status(500).send("Error al reservar el turno");
     }
 };
-
-
-
-
 
 //===========================================================//
 // FILTROS DE BÚSQUEDA (TURNOS)

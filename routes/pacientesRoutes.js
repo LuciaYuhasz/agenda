@@ -22,6 +22,8 @@ router.post('/pacientes/editar/:id', pacientesController.modificarPaciente);
 
 // Marcar paciente como inactivo (baja lógica)
 router.post('/pacientes/eliminar/:id', pacientesController.cambiarEstadoInactivo);
+router.post('/pacientes/cambiarEstado/:id', pacientesController.cambiarEstadoInactivo);
+
 
 // Buscar pacientes por nombre, apellido o DNI (para autocompletado)
 router.get('/buscarpaciente', pacientesController.buscarpaciente);

@@ -45,7 +45,9 @@ block contenido
             if (!profesionalId) return; // Si no se selecciona profesional, no hacer nada
 
             try {
-                const response = await fetch(`/especialidades/${profesionalId}`);
+                //const response = await fetch(`/especialidades/${profesionalId}`);
+                const response = await fetch(`/especialidades-todas/${profesionalId}`);
+
                 if (!response.ok) throw new Error("Error al obtener especialidades");
 
                 const especialidades = await response.json();

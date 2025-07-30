@@ -3,7 +3,7 @@ extends ../layout.pug
 
 block contenido
   .container
-    h1.text-center Listado de Pacientes
+    h1.text-center Pacientes
 
     button#btn-volver(type="button" class="btn btn-secondary" onclick="history.back()") Volver
 
@@ -31,15 +31,25 @@ block contenido
                   = `${paciente.nombre} ${paciente.apellido} (${paciente.dni})`
               .accordion-collapse.collapse(id=`collapse-${letra}-${idx}`, data-bs-parent=`#accordion-${letra}`)
                 .accordion-body
-                  p strong Obra Social: 
-                    | #{paciente.obra_social}
-                  p strong Teléfono: 
-                    | #{paciente.telefono}
-                  p strong Email: 
-                    | #{paciente.email}
-                  p strong Estado: 
-                    | #{paciente.activo == 1 ? 'Activo' : 'Inactivo'}
+                  p
+                    strong Obra Social:
+                    |   #{paciente.obra_social}
+                  p
+                    strong Teléfono:
+                    |   #{paciente.telefono}
+                  p
+                    strong Email:
+                    |   #{paciente.email}
+                  p
+                    strong Estado:
+                    |   #{paciente.activo == 1 ? 'Activo' : 'Inactivo'}
+
 
                   a(href=`/pacientes/editar/${paciente.id_paciente}` class="btn btn-info btn-sm me-2") Modificar
-                  form(action=`/pacientes/eliminar/${paciente.id_paciente}`, method="POST", style="display:inline;")
-                    button(type="submit" class="btn btn-danger btn-sm" onclick="return confirm('¿Estás seguro que querés eliminar a este paciente?');") Borrar
+                  form(action=`/pacientes/cambiarEstado/${paciente.id_paciente}`, method="POST", style="display:inline;")
+                    button(
+                      type="submit"
+                      class=`btn btn-sm ${paciente.activo == 1 ? 'btn-danger' : 'btn-success'}`
+                      onclick=`return confirm('${paciente.activo == 1 ? '¿Seguro que querés inactivar?' : '¿Querés reactivar al paciente?'}');`
+                    )
+                      = paciente.activo == 1 ? 'Inactivar' : 'Activar'

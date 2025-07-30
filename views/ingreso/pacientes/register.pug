@@ -48,7 +48,7 @@ block contenido
                 .mb-3
                   label(for="obra_social" class="form-label") Obra Social:
                   select(name="obra_social" class="form-select" required)
-                    option(value="") Selecciona una obra social
+                    option(value="") Selecciona una obra social/particular
                     each obra in obrasSociales
                       option(value=obra.id_obra_social)= obra.nombre
                 .mb-3

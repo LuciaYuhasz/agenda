@@ -63,6 +63,8 @@ block contenido
                   if user && user.id_rol === 1
                     form(action=`/medicos/agregar-especialidad/${medico.id_profesional}`, method="GET", style="display:inline;")
                       button(type="submit" class="btn btn-primary btn-sm") Agregar Especialidad
+                    form(action="/ingreso/administrador/createAgenda" method="get")
+                      button(type="submit" class="btn btn-warning") Crear Agenda
 
               if medico.especialidades.length > 0
                 ul.list-group.list-group-flush.mt-3

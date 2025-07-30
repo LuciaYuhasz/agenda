@@ -1,6 +1,7 @@
 extends ../layout
 
 block contenido
+  button.btn.btn-secondary#btn-volver(type="button" onclick="history.back()") ← Volver atrás
   .container
     h1.text-center Transferir Turno
 
@@ -17,7 +18,8 @@ block contenido
         label.form-label(for="nuevo_horario") Seleccionar nuevo horario:
         select.form-control(name="nuevo_horario" required)
           each horario in horarios_disponibles
-            option(value=horario.id_horario)= `${horario.hora_inicio} - ${horario.hora_fin} (${horario.fecha})`
+            option(value=horario.id_horario)= `${horario.hora_inicio_formateada} - ${horario.hora_fin_formateada} (${horario.fecha_formateada})`
+
 
       .d-grid
         button.btn.btn-primary(type="submit") Confirmar transferencia

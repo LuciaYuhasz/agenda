@@ -2,7 +2,8 @@ extends ../layout.pug
 
 block contenido
     .container
-        h1 Modificar Médico
+        h1.text-center Modificar datos del profesional
+        button#btn-volver(type="button" class="btn btn-secondary" onclick="history.back()") Volver
         form(action=`/medicos/editar/${medico.id_profesional}`, method="POST")
             .mb-3
                 label(for="nombre", class="form-label") Nombre

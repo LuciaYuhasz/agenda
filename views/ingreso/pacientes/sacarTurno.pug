@@ -77,9 +77,9 @@ block contenido
         input(type="hidden" name="id_horario" id="id_horario")
         input(type="hidden" name="fecha" id="fecha")
         input(type="hidden" name="horario" id="horario")
-        label(for="documento") Subir documento (opcional):
+        label(for="documento") Orden de autorizacion (opcional):
         input.form-control(type="file" name="documento" id="documento" accept="image/*")
-        //button.btn.btn-primary(type="submit") Reservar Turno
+        
         button.btn.btn-primary(type="submit" id="btnReservar" disabled) Reservar Turno
 
     // Mostrar detalles del turno
@@ -100,7 +100,7 @@ block contenido
     const fechaTurno = !{JSON.stringify(fechaTurno)};
     const horarioTurno = !{JSON.stringify(horarioTurno)};
     window.addEventListener('DOMContentLoaded', function () {
-      alert(`✅ ¡Turno reservado exitosamente!\n
+      alert(`✅ TURNO RESERVADO CON ÉXITO. ESPERA CONFIRMACIÓN.\n
             Profesional: ${nombreProfesional}\n
             Especialidad: ${nombreEspecialidad}\n
             Fecha: ${fechaTurno}\n
@@ -215,7 +215,7 @@ block contenido
                         document.getElementById('horario').value = horario.hora_inicio;
                         
                          // ✅ Formatea la fecha antes de asignarla al campo del formulario
-                        //document.getElementById('fecha').value = new Date(horario.fecha).toISOString().split('T')[0]; 
+                        
                         document.getElementById('fecha').value = horario.fecha;
                         
 

@@ -192,7 +192,6 @@ exports.createScheduleBatch = async (req, res) => {
     }
 
     try {
-        // Creamos fechas con componentes desglosados para evitar problemas de zona horaria
         const startDate = new Date(`${rango_fechas_inicio}T00:00:00`);
         const endDate = new Date(`${rango_fechas_fin}T00:00:00`);
 
@@ -200,13 +199,21 @@ exports.createScheduleBatch = async (req, res) => {
             return res.status(400).send("El rango de fechas no es válido.");
         }
 
+        // 🔒 Traer bloqueos dentro del rango de fechas para esta agenda
+        const [bloqueos] = await conn.query(
+            `SELECT fecha_bloqueo, hora_inicio, hora_fin 
+             FROM bloqueos_horarios 
+             WHERE id_agenda = ? AND fecha_bloqueo BETWEEN ? AND ?`,
+            [id_agenda, rango_fechas_inicio, rango_fechas_fin]
+        );
+
         const horarios = [];
         const daysOfWeek = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
 
         for (let i = 0; i <= (endDate - startDate) / (1000 * 60 * 60 * 24); i++) {
             const d = new Date(startDate);
             d.setDate(d.getDate() + i);
-            d.setHours(0, 0, 0, 0); // Aseguramos medianoche local
+            d.setHours(0, 0, 0, 0); // Asegura medianoche local
 
             const fechaStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
             const currentDay = daysOfWeek[d.getDay()];
@@ -231,15 +238,27 @@ exports.createScheduleBatch = async (req, res) => {
                 const nextHour = new Date(currentHour.getTime() + duracion_turno * 60000);
                 if (nextHour > endHour) break;
 
-                horarios.push([
-                    id_agenda,
-                    currentDay,
-                    fechaStr,
-                    currentHour.toTimeString().split(" ")[0],
-                    nextHour.toTimeString().split(" ")[0],
-                    duracion_turno,
-                    1
-                ]);
+                const horaInicioStr = currentHour.toTimeString().split(" ")[0]; // HH:MM:SS
+                const horaFinStr = nextHour.toTimeString().split(" ")[0];
+
+                // 🔒 Verificar si este horario está completamente dentro de un bloqueo
+                const bloqueoEnFecha = bloqueos.find(b =>
+                    b.fecha_bloqueo.toISOString().split("T")[0] === fechaStr &&
+                    horaInicioStr >= b.hora_inicio &&
+                    horaFinStr <= b.hora_fin
+                );
+
+                if (!bloqueoEnFecha) {
+                    horarios.push([
+                        id_agenda,
+                        currentDay,
+                        fechaStr,
+                        horaInicioStr,
+                        horaFinStr,
+                        duracion_turno,
+                        1
+                    ]);
+                }
 
                 currentHour = nextHour;
             }
@@ -273,100 +292,6 @@ exports.createScheduleBatch = async (req, res) => {
     }
 };
 
-
-
-
-
-//creo que no uso el metodo siguiente 
-/*
-exports.viewSchedule = async (req, res) => {
-    const { id_agenda } = req.query;
-
-    if (!id_agenda) {
-        return res.status(400).send("Falta el ID de la agenda.");
-    }
-
-    try {
-        const queryAgendas = `
-            SELECT 
-                h.fecha, 
-                h.hora_inicio, 
-                h.hora_fin, 
-                h.estado, 
-                CONCAT(p.nombre, ' ', p.apellido) AS nombre_completo, 
-                e.nombre AS nombre_especialidad
-            FROM 
-                horarios h
-            INNER JOIN 
-                agendas a ON h.id_agenda = a.id_agenda
-            INNER JOIN 
-                profesionales p ON a.id_profesional = p.id_profesional
-            INNER JOIN 
-                especialidades e ON a.id_profesional_especialidad = e.id_especialidad
-            WHERE 
-                h.id_agenda = ?
-            ORDER BY 
-                h.fecha, h.hora_inicio;
-        `;
-        const [rows] = await conn.query(queryAgendas, [id_agenda]);
-
-        const agendas = rows.reduce((acc, horario) => {
-            const { fecha } = horario;
-            if (!acc[fecha]) acc[fecha] = [];
-            acc[fecha].push(horario);
-            return acc;
-        }, {});
-
-        res.render("ingreso/administrador/visualizar-agendas", { agendas });
-    } catch (error) {
-        console.error("Error al obtener las agendas:", error);
-        res.status(500).send("Hubo un error al obtener las agendas.");
-    }
-};*/
-
-
-
-
-//CHEQUEAR LO COMENTADO ABAJO
-/*
-exports.createSchedule = async (req, res) => {
-    const id_agenda = req.query.id_agenda || req.body.id_agenda; // Tomar el id_agenda del query o del formulario
-    const { dia_semana, fecha, hora_inicio, hora_fin, duracion_turno } = req.body;
-
-    if (!id_agenda) {
-        return res.status(400).send("Falta el ID de la agenda.");
-    }
-
-    try {
-        // Validar que la agenda exista
-        const checkAgendaQuery = `SELECT * FROM agendas WHERE id_agenda = ?`;
-        const [agendaRows] = await conn.query(checkAgendaQuery, [id_agenda]);
-        if (agendaRows.length === 0) {
-            return res.status(404).send("La agenda no existe.");
-        }
-
-        // Insertar nuevo horario
-        const insertScheduleQuery =
-            `INSERT INTO horarios 
-                (id_agenda, dia_semana, fecha, hora_inicio, hora_fin, duracion_turno, disponible) 
-                VALUES (?, ?, ?, ?, ?, ?, 1)`;
-        const [result] = await conn.query(insertScheduleQuery, [
-            id_agenda,
-            dia_semana,
-            fecha,
-            hora_inicio,
-            hora_fin,
-            duracion_turno
-        ]);
-
-        console.log("Horario creado con éxito:", result.insertId);
-        res.status(201).send("Horario creado exitosamente.");
-    } catch (error) {
-        console.error("Error al crear horario:", error);
-        res.status(500).send("Hubo un error al crear el horario.");
-    }
-};
-*/
 //* Renderiza  desde la agenda articular ara agregar mas horarios.
 exports.showCreateSchedule = async (req, res) => {
     const id_agenda = req.query.id_agenda;
@@ -428,7 +353,7 @@ exports.listarMedicosParacrear = async (req, res) => {
     }
 };
 //este metodo es usado para la creacion de la agenda
-exports.getEspecialidadesPorProfesional = async (req, res) => {
+/*exports.getEspecialidadesPorProfesional = async (req, res) => {
     const { id_profesional } = req.params;
 
     try {
@@ -445,6 +370,51 @@ exports.getEspecialidadesPorProfesional = async (req, res) => {
         res.status(500).send("Error al consultar especialidades.");
     }
 };
+
+
+*/
+exports.getEspecialidadesPorProfesional = async (req, res) => {
+    const { id_profesional } = req.params;
+
+    try {
+        const [result] = await conn.execute(`
+      SELECT e.id_especialidad, e.nombre AS nombre_especialidad
+      FROM profesionales_especialidades pe
+      JOIN especialidades e ON pe.id_especialidad = e.id_especialidad
+      LEFT JOIN agendas a 
+        ON a.id_profesional = pe.id_profesional 
+        AND a.id_profesional_especialidad = pe.id_especialidad
+      WHERE pe.id_profesional = ?
+        AND a.id_agenda IS NULL
+    `, [id_profesional]);
+
+        console.log("Especialidades disponibles:", result);
+        res.json(result);
+    } catch (error) {
+        console.error("Error al consultar especialidades disponibles:", error);
+        res.status(500).send("Error al consultar especialidades.");
+    }
+};
+//y este metodo es para la busqueda de agendas 
+exports.getEspecialidadesPorProfesionalSinFiltro = async (req, res) => {
+    const { id_profesional } = req.params;
+
+    try {
+        const [result] = await conn.execute(`
+      SELECT e.id_especialidad, e.nombre AS nombre_especialidad
+      FROM profesionales_especialidades pe
+      JOIN especialidades e ON pe.id_especialidad = e.id_especialidad
+      WHERE pe.id_profesional = ?
+    `, [id_profesional]);
+
+        res.json(result);
+    } catch (error) {
+        console.error("Error al consultar especialidades:", error);
+        res.status(500).send("Error al consultar especialidades.");
+    }
+};
+
+
 //METODO PARA MOSTRAR FORMULARIO DE CREACION DE AGENDA NUEVA 
 exports.formCrearAgenda = async (req, res) => {
     try {
@@ -475,24 +445,8 @@ exports.formCrearAgenda = async (req, res) => {
 };
 
 //Medodo para port de horarios bloquedos 
-exports.createBlock = async (req, res) => {
-    const { id_agenda, fecha_bloqueo, hora_inicio, hora_fin, motivo } = req.body;
 
-    try {
-        const query = `
-            INSERT INTO bloqueos_horarios (id_agenda, fecha_bloqueo, hora_inicio, hora_fin, motivo) 
-            VALUES (?, ?, ?, ?, ?)
-        `;
-        await conn.query(query, [id_agenda, fecha_bloqueo, hora_inicio, hora_fin, motivo]);
-
-        console.log("Bloqueo registrado correctamente");
-        res.redirect("/administrador"); // Redirige al panel de administrador después del bloqueo
-    } catch (error) {
-        console.error("Error al bloquear horario:", error);
-        res.status(500).send("Hubo un error al bloquear el horario.");
-    }
-};
-//funcion ara cargar agenda con horartios bloqueados
+//funcion para cargar agenda con horartios bloqueados
 exports.getAgendasWithBlocks = async (req, res) => {
     try {
         console.log("Ejecutando getAgendasWithBlocks...");
@@ -514,6 +468,167 @@ exports.getAgendasWithBlocks = async (req, res) => {
     } catch (error) {
         console.error("Error al cargar agendas y bloqueos:", error);
         res.status(500).send("Hubo un error al cargar las agendas.");
+    }
+};
+
+
+function getDatesOfWeekdayInMonth(month, weekday) {
+    const [year, mes] = month.split("-");
+    const fechas = [];
+    const date = new Date(year, mes - 1, 1);
+
+    while (date.getMonth() + 1 === parseInt(mes)) {
+        if (date.getDay() === (weekday === "saturday" ? 6 : 0)) {
+            fechas.push(new Date(date));
+        }
+        date.setDate(date.getDate() + 1);
+    }
+
+    return fechas;
+}
+/*
+
+exports.createBlock = async (req, res) => {
+    const {
+        id_agenda,
+        fecha_bloqueo,
+        hora_inicio,
+        hora_fin,
+        motivo,
+        bloqueo_completo,
+        repetir,
+        mes,
+        modo
+    } = req.body;
+
+    let fechas = [];
+    let inicio = hora_inicio;
+    let fin = hora_fin;
+
+    try {
+        if (modo === "puntual") {
+            if (!fecha_bloqueo || !hora_inicio || !hora_fin) {
+                return res.status(400).send("Faltan datos para bloqueo puntual.");
+            }
+            fechas = [fecha_bloqueo];
+        } else if (modo === "recurrente") {
+            if (!mes || !repetir) {
+                return res.status(400).send("Faltan datos para bloqueo recurrente.");
+            }
+            fechas = getDatesOfWeekdayInMonth(mes, repetir).map(f =>
+                f.toISOString().slice(0, 10)
+            );
+            if (bloqueo_completo) {
+                inicio = "00:00";
+                fin = "23:59";
+            }
+        }
+
+        for (const fecha of fechas) {
+            const query = `
+        INSERT INTO bloqueos_horarios (id_agenda, fecha_bloqueo, hora_inicio, hora_fin, motivo)
+        VALUES (?, ?, ?, ?, ?)
+      `;
+            await conn.query(query, [id_agenda, fecha, inicio, fin, motivo]);
+        }
+        
+
+        // 🔍 Recuperar los datos del profesional y especialidad desde la agenda
+        const [agendaData] = await conn.query(
+            `SELECT id_profesional, id_profesional_especialidad FROM agendas WHERE id_agenda = ?`,
+            [id_agenda]
+        );
+
+        if (agendaData.length === 0) {
+            return res.status(404).send("Agenda no encontrada.");
+        }
+
+        const { id_profesional, id_profesional_especialidad: id_especialidad } = agendaData[0];
+
+        console.log("Bloqueos registrados correctamente");
+        res.redirect(`/buscar-agenda?id_profesional=${id_profesional}&id_especialidad=${id_especialidad}`);
+
+    } catch (error) {
+        console.error("Error al bloquear horario:", error);
+        res.status(500).send("Hubo un error al bloquear el horario.");
+    }
+};*/
+exports.createBlock = async (req, res) => {
+    const {
+        id_agenda,
+        fecha_bloqueo,
+        hora_inicio,
+        hora_fin,
+        motivo,
+        bloqueo_completo,
+        repetir,
+        mes,
+        modo
+    } = req.body;
+
+    let fechas = [];
+    let inicio = hora_inicio;
+    let fin = hora_fin;
+
+    try {
+        if (modo === "puntual") {
+            if (!fecha_bloqueo || !hora_inicio || !hora_fin) {
+                return res.status(400).send("Faltan datos para bloqueo puntual.");
+            }
+            fechas = [fecha_bloqueo];
+        } else if (modo === "recurrente") {
+            if (!mes || !repetir) {
+                return res.status(400).send("Faltan datos para bloqueo recurrente.");
+            }
+            fechas = getDatesOfWeekdayInMonth(mes, repetir).map(f =>
+                f.toISOString().slice(0, 10)
+            );
+            if (bloqueo_completo) {
+                inicio = "00:00";
+                fin = "23:59";
+            }
+        }
+
+        for (const fecha of fechas) {
+            // Insertar el bloqueo
+            const query = `
+                INSERT INTO bloqueos_horarios (id_agenda, fecha_bloqueo, hora_inicio, hora_fin, motivo)
+                VALUES (?, ?, ?, ?, ?)
+            `;
+            await conn.query(query, [id_agenda, fecha, inicio, fin, motivo]);
+
+            // Marcar los horarios que se superponen como no disponibles
+            await conn.query(
+                `UPDATE horarios
+                 SET disponible = 0
+                 WHERE id_agenda = ? 
+                 AND fecha = ? 
+                 AND (
+                    (hora_inicio < ? AND hora_fin > ?) OR
+                    (hora_inicio >= ? AND hora_inicio < ?) OR
+                    (hora_fin > ? AND hora_fin <= ?)
+                 )`,
+                [id_agenda, fecha, fin, inicio, inicio, fin, inicio, fin]
+            );
+        }
+
+        const [agendaData] = await conn.query(
+            `SELECT id_profesional, id_profesional_especialidad FROM agendas WHERE id_agenda = ?`,
+            [id_agenda]
+        );
+
+        if (agendaData.length === 0) {
+            return res.status(404).send("Agenda no encontrada.");
+        }
+
+        const { id_profesional, id_profesional_especialidad: id_especialidad } = agendaData[0];
+
+        console.log("Bloqueos registrados correctamente");
+        res.redirect(`/buscar-agenda?id_profesional=${id_profesional}&id_especialidad=${id_especialidad}`);
+
+    } catch (error) {
+        console.error("Error al bloquear horario:", error);
+        res.status(500).send("Hubo un error al bloquear el horario.");
     }
 };
 

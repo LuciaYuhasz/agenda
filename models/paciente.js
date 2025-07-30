@@ -24,15 +24,16 @@ exports.listarPacientes = async () => {
 
 
 // Función para actualizar un paciente
-exports.modificarPaciente = async (id, nombre, apellido, dni, obra_social, telefono, email) => {
+exports.modificarPaciente = async (id, nombre, apellido, dni, id_obra_social, telefono, email) => {
     const sql = `UPDATE pacientes 
-                 SET nombre = ?, apellido = ?, dni = ?, obra_social = ?, telefono = ?, email = ? 
+                 SET nombre = ?, apellido = ?, dni = ?, id_obra_social = ?, telefono = ?, email = ? 
                  WHERE id_paciente = ?`;
-    const values = [nombre, apellido, dni, obra_social, telefono, email, id];
+    const values = [nombre, apellido, dni, id_obra_social, telefono, email, id];
 
     const [result] = await conn.query(sql, values);
     return result;
 };
+
 
 // Función para cambiar el estado del paciente a inactivo
 exports.cambiarEstadoInactivo = async (id) => {
@@ -43,7 +44,17 @@ exports.cambiarEstadoInactivo = async (id) => {
 
 // Obtener un paciente por ID
 exports.obtenerPacientePorId = async (id) => {
-    const query = 'SELECT * FROM pacientes WHERE id_paciente = ?';
+    const query = `
+        SELECT p.*, o.nombre AS nombre_obra_social
+        FROM pacientes p
+        LEFT JOIN obras_sociales o ON p.id_obra_social = o.id_obra_social
+        WHERE p.id_paciente = ?`;
     const [results] = await conn.query(query, [id]);
-    return results.length > 0 ? results[0] : null; // Retorna el primer resultado o null si no se encuentra
+    return results.length > 0 ? results[0] : null;
+};
+
+exports.obtenerObrasSociales = async () => {
+    const sql = 'SELECT id_obra_social, nombre FROM obras_sociales';
+    const [rows] = await conn.query(sql);
+    return rows;
 };

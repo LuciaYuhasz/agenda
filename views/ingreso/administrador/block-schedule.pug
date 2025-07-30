@@ -4,7 +4,7 @@ block contenido
   head
     title Bloquear Horarios
     button.btn.btn-secondary#btn-volver(type="button" onclick="history.back()") ← Volver atrás
-    link(rel="stylesheet", href="/css/styles.css")
+    link(rel="stylesheet", href="/styles.css")
 
   body.bg-light.py-5
     .container
@@ -15,27 +15,66 @@ block contenido
               h1.text-center.mb-4.text-danger Bloquear Horarios
 
               form(action="/create-block" method="POST")
+                            
                 input(type="hidden" name="id_agenda" value=id_agenda)
 
                 .mb-3
-                  label.form-label(for="fecha_bloqueo") Fecha a bloquear:
-                  input.form-control(type="date" name="fecha_bloqueo" required)
+                  label.form-label Seleccione tipo de bloqueo:
+                  div
+                    label.me-2
+                      input(type="radio" name="modo" value="puntual" checked onchange="cambiarModo(this.value)")
+                      | Puntual
+                    label.me-2
+                      input(type="radio" name="modo" value="recurrente" onchange="cambiarModo(this.value)")
+                      | Recurrente
+
+                // Campos para bloqueo puntual
+                .campos-puntuales
+                  .mb-3
+                    label.form-label Fecha a bloquear:
+                    input.form-control(type="date" name="fecha_bloqueo")
+
+                  .mb-3
+                    label.form-label Hora de inicio:
+                    input.form-control(type="time" name="hora_inicio")
+
+                  .mb-3
+                    label.form-label Hora de fin:
+                    input.form-control(type="time" name="hora_fin")
+
+                // Campos para bloqueo recurrente
+                .campos-recurrentes(style="display:none")
+                  .mb-3
+                    label.form-label Bloquear día completo:
+                    input(type="checkbox" name="bloqueo_completo")
+
+                  .mb-3
+                    label.form-label Bloquear días recurrentes:
+                    select.form-control(name="repetir")
+                      option(value="") -- Seleccione --
+                      option(value="saturday") Todos los sábados
+                      option(value="sunday") Todos los domingos
+
+                  .mb-3
+                    label.form-label Mes para el bloqueo recurrente:
+                    input.form-control(type="month" name="mes")
 
                 .mb-3
-                  label.form-label(for="hora_inicio") Hora de Inicio:
-                  input.form-control(type="time" name="hora_inicio" required)
-
-                .mb-3
-                  label.form-label(for="hora_fin") Hora de Fin:
-                  input.form-control(type="time" name="hora_fin" required)
-
-                .mb-3
-                  label.form-label(for="motivo") Motivo del bloqueo:
+                  label.form-label Motivo del bloqueo:
                   textarea.form-control(name="motivo" rows="2")
 
                 .d-grid
-
                   button.btn.btn-danger(type="submit") Guardar bloqueo
+
+              script.
+                function cambiarModo(modo) {
+                  const puntualFields = document.querySelectorAll(".campos-puntuales");
+                  const recurrenteFields = document.querySelectorAll(".campos-recurrentes");
+
+                  puntualFields.forEach(el => el.style.display = modo === "puntual" ? "block" : "none");
+                  recurrenteFields.forEach(el => el.style.display = modo === "recurrente" ? "block" : "none");
+                }
+
 
 
 

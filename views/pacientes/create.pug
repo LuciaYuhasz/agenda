@@ -1,7 +1,9 @@
 extends ../layout.pug
 
 block contenido
+
   h1.form-title Formulario de Registro de Paciente
+  
   form(action="/pacientes" method="post")
     .form-group
       label(for="nombre") Nombre:
@@ -17,7 +19,7 @@ block contenido
     .form-group
       label(for="obra_social") Obra Social:
       select(name="id_obra_social" id="obra_social" class="custom-select" required)
-        option(value="" disabled selected class="placeholder") -- Seleccione una obra social --
+        option(value="" disabled selected class="placeholder") -- Seleccione obra social/particular/otra  --
         each obra in obrasSociales
           option(value=obra.id_obra_social) #{obra.nombre}
         option(value="nueva") Otra (Agregar nueva)
@@ -39,6 +41,7 @@ block contenido
 
   script.
     document.getElementById("obra_social").addEventListener("change", function() {
+      console.log("Seleccionaste:", this.value); // Verifica que se dispara
       document.getElementById("nuevo_obra_social").style.display = this.value === "nueva" ? "block" : "none";
     });
 
