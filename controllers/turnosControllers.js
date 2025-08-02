@@ -5,6 +5,79 @@ const conn = require('../db');
 // Mostrar formulario para crear un nuevo turno
 exports.mostrarFormularioCrear = async (req, res) => {
     try {
+        const idSucursal = req.session.id_sucursal;
+
+        // Cargar obras sociales (no están ligadas a sucursal)
+        const [obrasSociales] = await conn.query(
+            'SELECT id_obra_social, nombre FROM obras_sociales ORDER BY nombre ASC'
+        );
+
+        // Cargar pacientes (podés filtrar por sucursal si aplica)
+        const [pacientes] = await conn.query('SELECT * FROM pacientes');
+
+        // Filtrar profesionales por sucursal
+        const [profesionales] = await conn.execute(
+            'SELECT * FROM profesionales WHERE id_sucursal = ?', [idSucursal]
+        );
+        console.log("Profesionales filtrados:", profesionales);
+
+        // Cargar especialidades relacionadas a esos profesionales
+        const [especialidades] = await conn.query(`
+            SELECT DISTINCT e.id_especialidad, e.nombre
+            FROM especialidades e
+            INNER JOIN profesionales_especialidades pe ON e.id_especialidad = pe.id_especialidad
+            INNER JOIN profesionales p ON pe.id_profesional = p.id_profesional
+            WHERE p.id_sucursal = ?
+        `, [idSucursal]);
+
+        const id_profesional =
+            req.query.id_profesional || (profesionales[0]?.id_profesional ?? null);
+        const id_especialidad =
+            req.query.id_especialidad || (especialidades[0]?.id_especialidad ?? null);
+
+        const fecha = req.query.fecha
+            ? new Date(req.query.fecha).toISOString().slice(0, 10)
+            : new Date().toISOString().slice(0, 10);
+
+        const [horarios] = await conn.query('SELECT * FROM horarios');
+
+        const [enumEstadoRows] = await conn.query(`
+            SHOW COLUMNS FROM turnos WHERE Field = 'estado'
+        `);
+
+        let estadoOptions = [];
+        if (enumEstadoRows.length > 0) {
+            const enumStr = enumEstadoRows[0].Type;
+            estadoOptions = enumStr
+                .replace("enum(", "")
+                .replace(")", "")
+                .split(",")
+                .map(val => val.replace(/'/g, ""));
+        }
+        console.log("Profesionales filtrados:", profesionales);
+        console.log("Especialidades filtradas:", especialidades);
+        console.log("Obras sociales:", obrasSociales);
+
+
+        res.render('turnos/crear', {
+            pacientes,
+            profesionales,
+            especialidades,
+            horariosDisponibles: horarios,
+            obrasSociales,
+            estadoOptions,
+            id_profesional,
+            id_especialidad,
+            fecha
+        });
+    } catch (error) {
+        console.error('Error al mostrar formulario de creación de turno:', error);
+        res.status(500).send('Error al cargar el formulario de creación de turno');
+    }
+};
+
+/*exports.mostrarFormularioCrear = async (req, res) => {
+    try {
         // Cargar obras sociales
         const [obrasSociales] = await conn.query(
             'SELECT id_obra_social, nombre FROM obras_sociales ORDER BY nombre ASC'
@@ -59,7 +132,7 @@ exports.mostrarFormularioCrear = async (req, res) => {
         console.error('Error al mostrar formulario de creación de turno:', error);
         res.status(500).send('Error al cargar el formulario de creación de turno');
     }
-};
+};*/
 exports.crearTurno = async (req, res) => {
     console.log('📦 Datos crudos recibidos en req.body:', req.body);
 

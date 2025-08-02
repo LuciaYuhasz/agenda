@@ -56,6 +56,7 @@ router.get('/api/profesionales/:id_especialidad', pacientesController.obtenerPro
 // Obtener especialidades que atiende un profesional
 router.get('/api/especialidades/:idProfesional', pacientesController.obtenerEspecialidadesPorProfesional);
 
+
 // Obtener horarios disponibles de un profesional por especialidad y fecha
 router.get('/obtenerHorarios/:idProfesional/:idEspecialidad/:fechaInicio', pacientesController.obtenerHorarios);
 

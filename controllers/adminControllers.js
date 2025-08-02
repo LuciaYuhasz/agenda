@@ -30,7 +30,7 @@ exports.loginAdmin = async (req, res) => {
     const { email, password } = req.body;
 
     try {
-        // Buscar usuario en la base de datos con el rol de Administrador
+        // Buscar usuario en la base de datos
         const query = `
             SELECT * FROM usuarios 
             WHERE email = ? AND id_rol = 1 AND activo = 1
@@ -42,35 +42,38 @@ exports.loginAdmin = async (req, res) => {
         }
 
         const admin = rows[0];
-
-        // Verificar contraseña
         const isPasswordValid = await bcrypt.compare(password, admin.password);
+
         if (!isPasswordValid) {
             return res.status(401).send("Credenciales incorrectas.");
         }
 
         console.log("Administrador autenticado correctamente");
 
-        //req.session.adminId = admin.id_usuario; // Ejemplo: almacenar el ID en la sesión
-        // 👉 Acá guardamos toda la info relevante del usuario
-        /* req.session.usuario = {
-             id_usuario: admin.id_usuario,
-             email: admin.email,
-             id_rol: admin.id_rol
-         };*/
+        // 🔄 Regenerar sesión
+        req.session.regenerate((err) => {
+            if (err) {
+                console.error("Error regenerando la sesión:", err);
+                return res.status(500).send("Error al preparar la sesión.");
+            }
 
-        req.session.user = {
-            id: admin.id_usuario,
-            email: admin.email,
-            id_rol: admin.id_rol
-        };
+            // 🧼 Sesión limpia
+            req.session.user = {
+                id: admin.id_usuario,
+                email: admin.email,
+                id_rol: admin.id_rol
+            };
+            req.session.id_sucursal = null;
 
-        res.redirect("/administrador"); // Redirige al panel de administrador
+            res.redirect("/administrador");
+        });
+
     } catch (error) {
         console.error("Error al iniciar sesión como administrador:", error);
         res.status(500).send("Hubo un error al iniciar sesión.");
     }
 };
+
 
 //===========================================================//
 //AGENDAS CRUD BASICO
@@ -184,7 +187,148 @@ const validarExistencia = async (query, params) => {
     return rows.length > 0;
 };
 // creacion de horarios y redireccion a agenda correspondiente 
+// 🔁 Función reutilizable para detectar solapamientos
+function isOverlapping(horaInicioTurno, horaFinTurno, horaInicioBloqueo, horaFinBloqueo) {
+    return horaInicioBloqueo < horaFinTurno && horaFinBloqueo > horaInicioTurno;
+}
+
+// 🚀 Creación de horarios y redirección a agenda correspondiente
 exports.createScheduleBatch = async (req, res) => {
+    const {
+        id_agenda,
+        hora_inicio,
+        hora_fin,
+        duracion_turno,
+        rango_fechas_inicio,
+        rango_fechas_fin
+    } = req.body;
+
+    if (
+        !id_agenda ||
+        !hora_inicio ||
+        !hora_fin ||
+        !duracion_turno ||
+        !rango_fechas_inicio ||
+        !rango_fechas_fin
+    ) {
+        return res.status(400).send("Faltan datos para generar los horarios.");
+    }
+
+    try {
+        const startDate = new Date(`${rango_fechas_inicio}T00:00:00`);
+        const endDate = new Date(`${rango_fechas_fin}T00:00:00`);
+
+        if (startDate > endDate) {
+            return res.status(400).send("El rango de fechas no es válido.");
+        }
+
+        // 🔒 Obtener bloqueos que aplican a esta agenda en el rango de fechas
+        const [bloqueos] = await conn.query(
+            `SELECT fecha_bloqueo, hora_inicio, hora_fin 
+             FROM bloqueos_horarios 
+             WHERE id_agenda = ? AND fecha_bloqueo BETWEEN ? AND ?`,
+            [id_agenda, rango_fechas_inicio, rango_fechas_fin]
+        );
+
+        const horarios = [];
+        const daysOfWeek = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+        let totalIntentos = 0;
+        let totalBloqueados = 0;
+        let totalDuplicados = 0;
+
+        for (let i = 0; i <= (endDate - startDate) / (1000 * 60 * 60 * 24); i++) {
+            const d = new Date(startDate);
+            d.setDate(d.getDate() + i);
+            d.setHours(0, 0, 0, 0);
+
+            const fechaStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+            const currentDay = daysOfWeek[d.getDay()];
+
+            let currentHour = new Date(d.getFullYear(), d.getMonth(), d.getDate(), parseInt(hora_inicio.split(":")[0]), parseInt(hora_inicio.split(":")[1]));
+            const endHour = new Date(d.getFullYear(), d.getMonth(), d.getDate(), parseInt(hora_fin.split(":")[0]), parseInt(hora_fin.split(":")[1]));
+
+            while (currentHour < endHour) {
+                const nextHour = new Date(currentHour.getTime() + duracion_turno * 60000);
+                if (nextHour > endHour) break;
+
+                const horaInicioStr = currentHour.toTimeString().split(" ")[0]; // HH:MM:SS
+                const horaFinStr = nextHour.toTimeString().split(" ")[0];
+
+                totalIntentos++;
+
+                const estaBloqueado = bloqueos.some(b => {
+                    const bloqueoFecha = b.fecha_bloqueo.toISOString().split("T")[0];
+                    return bloqueoFecha === fechaStr &&
+                        isOverlapping(horaInicioStr, horaFinStr, b.hora_inicio, b.hora_fin);
+                });
+
+                if (estaBloqueado) {
+                    totalBloqueados++;
+                    console.log(`⛔ Bloqueado: ${fechaStr} de ${horaInicioStr} a ${horaFinStr}`);
+                } else {
+                    // 🔍 Validar si ya existe ese horario
+                    const [existe] = await conn.query(
+                        `SELECT 1 FROM horarios 
+                         WHERE id_agenda = ? AND fecha = ? AND hora_inicio = ? LIMIT 1`,
+                        [id_agenda, fechaStr, horaInicioStr]
+                    );
+
+                    if (existe.length > 0) {
+                        totalDuplicados++;
+                        console.log(`🔁 Duplicado: ${fechaStr} de ${horaInicioStr} ya existe`);
+                    } else {
+                        console.log(`✅ Válido: ${fechaStr} de ${horaInicioStr} a ${horaFinStr}`);
+                        horarios.push([
+                            id_agenda,
+                            currentDay,
+                            fechaStr,
+                            horaInicioStr,
+                            horaFinStr,
+                            duracion_turno,
+                            1
+                        ]);
+                    }
+                }
+
+                currentHour = nextHour;
+            }
+        }
+
+        if (horarios.length > 0) {
+            const insertQuery = `
+                INSERT INTO horarios 
+                (id_agenda, dia_semana, fecha, hora_inicio, hora_fin, duracion_turno, disponible) 
+                VALUES ?
+            `;
+            await conn.query(insertQuery, [horarios]);
+            console.log(`🟢 ${horarios.length} horarios creados exitosamente`);
+        } else {
+            console.log("⚠️ No se generaron horarios válidos (todos estaban bloqueados o duplicados)");
+            return res.status(200).send("No se generaron horarios válidos. Todos estaban bloqueados o duplicados.");
+        }
+
+        console.log(`🧾 Resumen: ${totalIntentos} intentos — ${totalBloqueados} bloqueados — ${totalDuplicados} duplicados — ${horarios.length} insertados`);
+
+        const [agendaData] = await conn.query(
+            `SELECT id_profesional, id_profesional_especialidad FROM agendas WHERE id_agenda = ?`,
+            [id_agenda]
+        );
+
+        if (agendaData.length === 0) {
+            return res.status(404).send("Agenda no encontrada.");
+        }
+
+        const { id_profesional, id_profesional_especialidad: id_especialidad } = agendaData[0];
+
+        res.redirect(`/buscar-agenda?id_profesional=${id_profesional}&id_especialidad=${id_especialidad}`);
+    } catch (error) {
+        console.error("🚨 Error al crear horarios masivos:", error);
+        res.status(500).send("Hubo un error al crear los horarios masivamente.");
+    }
+};
+
+
+/*exports.createScheduleBatch = async (req, res) => {
     const { id_agenda, hora_inicio, hora_fin, duracion_turno, rango_fechas_inicio, rango_fechas_fin } = req.body;
 
     if (!id_agenda || !hora_inicio || !hora_fin || !duracion_turno || !rango_fechas_inicio || !rango_fechas_fin) {
@@ -291,7 +435,7 @@ exports.createScheduleBatch = async (req, res) => {
         res.status(500).send("Hubo un error al crear los horarios masivamente.");
     }
 };
-
+*/
 //* Renderiza  desde la agenda articular ara agregar mas horarios.
 exports.showCreateSchedule = async (req, res) => {
     const id_agenda = req.query.id_agenda;
@@ -486,8 +630,33 @@ function getDatesOfWeekdayInMonth(month, weekday) {
 
     return fechas;
 }
-/*
 
+
+
+
+// 🔒 Función para aplicar bloqueos sobre horarios existentes
+const actualizarHorariosBloqueados = async (id_agenda, fecha, inicio, fin) => {
+    const queryUpdate = `
+        UPDATE horarios
+        SET disponible = 0, estado = 'No disponible'
+        WHERE id_agenda = ? 
+          AND fecha = ? 
+          AND hora_inicio < ? 
+          AND hora_fin > ?
+          AND disponible = 1
+          AND estado = 'Libre'
+    `;
+    const [result] = await conn.query(queryUpdate, [
+        id_agenda,
+        fecha,
+        fin,   // hora_fin del bloqueo
+        inicio // hora_inicio del bloqueo
+    ]);
+    return result.affectedRows;
+};
+
+
+// 📅 Crear bloqueo de horarios
 exports.createBlock = async (req, res) => {
     const {
         id_agenda,
@@ -505,70 +674,12 @@ exports.createBlock = async (req, res) => {
     let inicio = hora_inicio;
     let fin = hora_fin;
 
-    try {
-        if (modo === "puntual") {
-            if (!fecha_bloqueo || !hora_inicio || !hora_fin) {
-                return res.status(400).send("Faltan datos para bloqueo puntual.");
-            }
-            fechas = [fecha_bloqueo];
-        } else if (modo === "recurrente") {
-            if (!mes || !repetir) {
-                return res.status(400).send("Faltan datos para bloqueo recurrente.");
-            }
-            fechas = getDatesOfWeekdayInMonth(mes, repetir).map(f =>
-                f.toISOString().slice(0, 10)
-            );
-            if (bloqueo_completo) {
-                inicio = "00:00";
-                fin = "23:59";
-            }
-        }
-
-        for (const fecha of fechas) {
-            const query = `
-        INSERT INTO bloqueos_horarios (id_agenda, fecha_bloqueo, hora_inicio, hora_fin, motivo)
-        VALUES (?, ?, ?, ?, ?)
-      `;
-            await conn.query(query, [id_agenda, fecha, inicio, fin, motivo]);
-        }
-        
-
-        // 🔍 Recuperar los datos del profesional y especialidad desde la agenda
-        const [agendaData] = await conn.query(
-            `SELECT id_profesional, id_profesional_especialidad FROM agendas WHERE id_agenda = ?`,
-            [id_agenda]
-        );
-
-        if (agendaData.length === 0) {
-            return res.status(404).send("Agenda no encontrada.");
-        }
-
-        const { id_profesional, id_profesional_especialidad: id_especialidad } = agendaData[0];
-
-        console.log("Bloqueos registrados correctamente");
-        res.redirect(`/buscar-agenda?id_profesional=${id_profesional}&id_especialidad=${id_especialidad}`);
-
-    } catch (error) {
-        console.error("Error al bloquear horario:", error);
-        res.status(500).send("Hubo un error al bloquear el horario.");
-    }
-};*/
-exports.createBlock = async (req, res) => {
-    const {
-        id_agenda,
-        fecha_bloqueo,
-        hora_inicio,
-        hora_fin,
-        motivo,
-        bloqueo_completo,
-        repetir,
-        mes,
-        modo
-    } = req.body;
-
-    let fechas = [];
-    let inicio = hora_inicio;
-    let fin = hora_fin;
+    // Normalizador de hora en formato HH:MM:SS
+    const normalizarHora = (hora) => {
+        return hora.length === 5 ? `${hora}:00` : hora;
+    };
+    inicio = normalizarHora(inicio);
+    fin = normalizarHora(fin);
 
     try {
         if (modo === "puntual") {
@@ -584,32 +695,29 @@ exports.createBlock = async (req, res) => {
                 f.toISOString().slice(0, 10)
             );
             if (bloqueo_completo) {
-                inicio = "00:00";
-                fin = "23:59";
+                inicio = "00:00:00";
+                fin = "23:59:59";
             }
         }
 
+        let bloqueosInsertados = 0;
+        let horariosAfectados = 0;
+
         for (const fecha of fechas) {
-            // Insertar el bloqueo
-            const query = `
-                INSERT INTO bloqueos_horarios (id_agenda, fecha_bloqueo, hora_inicio, hora_fin, motivo)
+            console.log(`🟥 Registrando bloqueo para ${fecha} de ${inicio} a ${fin}`);
+
+            const queryBloqueo = `
+                INSERT INTO bloqueos_horarios 
+                (id_agenda, fecha_bloqueo, hora_inicio, hora_fin, motivo)
                 VALUES (?, ?, ?, ?, ?)
             `;
-            await conn.query(query, [id_agenda, fecha, inicio, fin, motivo]);
+            await conn.query(queryBloqueo, [id_agenda, fecha, inicio, fin, motivo]);
+            bloqueosInsertados++;
 
-            // Marcar los horarios que se superponen como no disponibles
-            await conn.query(
-                `UPDATE horarios
-                 SET disponible = 0
-                 WHERE id_agenda = ? 
-                 AND fecha = ? 
-                 AND (
-                    (hora_inicio < ? AND hora_fin > ?) OR
-                    (hora_inicio >= ? AND hora_inicio < ?) OR
-                    (hora_fin > ? AND hora_fin <= ?)
-                 )`,
-                [id_agenda, fecha, fin, inicio, inicio, fin, inicio, fin]
-            );
+            // 🔒 Aplicar bloqueo sobre horarios existentes
+            const afectados = await actualizarHorariosBloqueados(id_agenda, fecha, inicio, fin);
+            console.log(`🔧 Horarios afectados en ${fecha}: ${afectados}`);
+            horariosAfectados += afectados;
         }
 
         const [agendaData] = await conn.query(
@@ -623,12 +731,12 @@ exports.createBlock = async (req, res) => {
 
         const { id_profesional, id_profesional_especialidad: id_especialidad } = agendaData[0];
 
-        console.log("Bloqueos registrados correctamente");
-        res.redirect(`/buscar-agenda?id_profesional=${id_profesional}&id_especialidad=${id_especialidad}`);
+        console.log(`✅ Total bloqueos registrados: ${bloqueosInsertados}`);
+        console.log(`🔒 Total horarios modificados: ${horariosAfectados}`);
 
+        res.redirect(`/buscar-agenda?id_profesional=${id_profesional}&id_especialidad=${id_especialidad}`);
     } catch (error) {
-        console.error("Error al bloquear horario:", error);
+        console.error("🚨 Error al bloquear horario:", error);
         res.status(500).send("Hubo un error al bloquear el horario.");
     }
 };
-

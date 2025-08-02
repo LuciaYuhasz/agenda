@@ -6,7 +6,8 @@ const conn = mysql.createPool({
   host: 'localhost', // Cambia esto si es necesario
   user: 'root',      // Tu usuario de MySQL
   password: '',      // Tu contraseña de MySQL
-  database: 'agendas' // Nombre de tu base de datos
+  database: 'agendas', // Nombre de tu base de datos
+  port: 3306
 });
 
 console.log('Conectado a la base de datos MySQL');

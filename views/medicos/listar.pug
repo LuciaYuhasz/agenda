@@ -37,9 +37,7 @@ block contenido
               | #{medico.nombre} #{medico.apellido}
           .accordion-collapse.collapse(id=`collapseActivo${index}` data-bs-parent="#accordionActivos")
             .accordion-body
-              strong ID: 
-              | #{medico.id_profesional}
-              br
+              
               strong DNI: 
               | #{medico.dni}
               br
@@ -49,9 +47,7 @@ block contenido
               strong Email: 
               | #{medico.email}
               br
-              strong Matrículas: 
-              | #{medico.matriculas}
-              br
+              
               strong Estado: 
               | #{medico.activo == 1 ? 'Activo' : 'Inactivo'}
 
@@ -90,9 +86,7 @@ block contenido
               | #{medico.nombre} #{medico.apellido}
           .accordion-collapse.collapse(id=`collapseInactivo${index}` data-bs-parent="#accordionInactivos")
             .accordion-body
-              strong ID: 
-              | #{medico.id_profesional}
-              br
+                          
               strong DNI: 
               | #{medico.dni}
               br
@@ -102,12 +96,7 @@ block contenido
               strong Email: 
               | #{medico.email}
               br
-              strong Especialidades: 
-              | #{medico.especialidades}
-              br
-              strong Matrículas: 
-              | #{medico.matriculas}
-              br
+             
               strong Estado: 
               | Inactivo
 

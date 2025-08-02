@@ -104,6 +104,17 @@ exports.crearMedico = async (req, res) => {
         // Iniciar la transacción
         await connection.beginTransaction();
 
+        // 🔍 Validar que el DNI no exista
+        const [existe] = await connection.execute(
+            'SELECT id_profesional FROM profesionales WHERE dni = ?',
+            [dni]
+        );
+
+        if (existe.length > 0) {
+            await connection.rollback();
+            return res.status(400).send('Ya existe un médico con ese DNI.');
+        }
+
         // Insertar el médico en la tabla profesionales
         const [result] = await connection.execute(
             'INSERT INTO profesionales (nombre, apellido, dni, id_sucursal, email) VALUES (?, ?, ?, ?, ?)',
@@ -139,6 +150,50 @@ exports.crearMedico = async (req, res) => {
         connection.release(); // Libera la conexión
     }
 };
+
+/*exports.crearMedico = async (req, res) => {
+    const { nombre, apellido, dni, id_sucursal, email, especialidades, matricula } = req.body;
+
+    const connection = await conn.getConnection(); // Obtén una conexión del pool
+    try {
+        // Iniciar la transacción
+        await connection.beginTransaction();
+
+        // Insertar el médico en la tabla profesionales
+        const [result] = await connection.execute(
+            'INSERT INTO profesionales (nombre, apellido, dni, id_sucursal, email) VALUES (?, ?, ?, ?, ?)',
+            [nombre, apellido, dni, id_sucursal, email]
+        );
+
+        const idProfesional = result.insertId;
+
+        // Manejar las especialidades
+        if (Array.isArray(especialidades)) {
+            for (let especialidad of especialidades) {
+                await connection.execute(
+                    'INSERT INTO profesionales_especialidades (id_profesional, id_especialidad, matricula) VALUES (?, ?, ?)',
+                    [idProfesional, especialidad, matricula]
+                );
+            }
+        } else {
+            await connection.execute(
+                'INSERT INTO profesionales_especialidades (id_profesional, id_especialidad, matricula) VALUES (?, ?, ?)',
+                [idProfesional, especialidades, matricula]
+            );
+        }
+
+        // Confirmar la transacción
+        await connection.commit();
+        res.redirect('/medicos');
+        console.log('Médico y especialidades insertados correctamente');
+    } catch (error) {
+        await connection.rollback();
+        console.error('Error al crear el médico:', error);
+        res.status(500).send('Error al insertar el médico');
+    } finally {
+        connection.release(); // Libera la conexión
+    }
+};*/
 // Borrar un médico (borrado lógico)
 exports.eliminarMedico = async (req, res) => {
     const idProfesional = req.params.id;
@@ -190,30 +245,37 @@ exports.modificarMedico = async (req, res) => {
     }
 };
 
-// Listar todos los médicos
-exports.listarMedicos = async (req, res) => {
+// Listar todos los médicos.. este no se si esta usandose por eso lo comento 
+/*exports.listarMedicos = async (req, res) => {
     try {
+        console.log("Filtro aplicado con id_sucursal:", req.session.id_sucursal);
+
+
         const [result] = await conn.execute(`
-            SELECT p.id_profesional, p.nombre, p.apellido, p.dni, p.activo, p.email, s.nombre AS sucursal_nombre,
-                   GROUP_CONCAT(e.nombre SEPARATOR ', ') AS especialidades,
-                   GROUP_CONCAT(pe.matricula SEPARATOR ', ') AS matriculas
-            FROM profesionales p
-            LEFT JOIN sucursales s ON p.id_sucursal = s.id_sucursal
-            LEFT JOIN profesionales_especialidades pe ON p.id_profesional = pe.id_profesional
-            LEFT JOIN especialidades e ON pe.id_especialidad = e.id_especialidad
-            GROUP BY p.id_profesional, p.nombre, p.apellido, p.dni, p.activo, p.email, s.nombre
-        `);
-        //res.render('medicos/listar', { medicos: result });
+  SELECT p.id_profesional, p.nombre, p.apellido, p.dni, p.activo, p.email, s.nombre AS sucursal_nombre,
+         GROUP_CONCAT(e.nombre SEPARATOR ', ') AS especialidades,
+         GROUP_CONCAT(pe.matricula SEPARATOR ', ') AS matriculas
+  FROM profesionales p
+  LEFT JOIN sucursales s ON p.id_sucursal = s.id_sucursal
+  LEFT JOIN profesionales_especialidades pe ON p.id_profesional = pe.id_profesional
+  LEFT JOIN especialidades e ON pe.id_especialidad = e.id_especialidad
+  WHERE p.id_sucursal = ?
+  GROUP BY p.id_profesional, p.nombre, p.apellido, p.dni, p.activo, p.email, s.nombre
+`, [req.session.id_sucursal]);
+
+
+
         res.render('medicos/listar', {
             medicos: result,
             usuario: req.session.usuario || {}
         });
 
+
     } catch (error) {
         console.error('Error al consultar los médicos:', error);
         res.status(500).send('Error al consultar los médicos');
     }
-};
+};*/
 
 //===========================================================//
 //  GESTION DE ESPECIALIDADES 
@@ -270,8 +332,27 @@ exports.eliminarEspecialidad = async (req, res) => {
 //===========================================================//
 //  LISTADO Y BUSQUEDA
 //===========================================================//
-// Obtener profesionales por especialidad
-exports.obtenerProfesionalesPorEspecialidad = async (req, res) => {
+// Obtener profesionales por especialidad para el turno desde la secreatraria pero no funciona para paciente por especilidad 
+/*exports.obtenerProfesionalesPorEspecialidad = async (req, res) => {
+    const idEspecialidad = req.params.id_especialidad;
+    const idSucursal = req.session.id_sucursal;
+
+    try {
+        const [resultados] = await conn.execute(`
+            SELECT p.id_profesional, p.nombre, p.activo
+            FROM profesionales p
+            JOIN profesionales_especialidades pe ON p.id_profesional = pe.id_profesional
+            WHERE pe.id_especialidad = ? AND p.id_sucursal = ? AND p.activo = 1
+        `, [idEspecialidad, idSucursal]);
+
+        res.json(resultados);
+    } catch (error) {
+        console.error('Error al consultar profesionales:', error);
+        return res.status(500).send('Error al consultar profesionales');
+    }
+};*/
+// funciona para paciente especiliad pero no para secre ( el filtro)
+/*exports.obtenerProfesionalesPorEspecialidad = async (req, res) => {
     const idEspecialidad = req.params.id_especialidad;
 
     try {
@@ -287,7 +368,35 @@ exports.obtenerProfesionalesPorEspecialidad = async (req, res) => {
         console.error('Error al consultar profesionales:', error);
         return res.status(500).send('Error al consultar profesionales');
     }
+};*/
+exports.obtenerProfesionalesPorEspecialidad = async (req, res) => {
+    const idEspecialidad = req.params.id_especialidad;
+    const idSucursal = req.session.id_sucursal;
+
+    try {
+        let query = `
+            SELECT p.id_profesional, p.nombre, p.activo
+            FROM profesionales p
+            JOIN profesionales_especialidades pe ON p.id_profesional = pe.id_profesional
+            WHERE pe.id_especialidad = ? AND p.activo = 1
+        `;
+        let params = [idEspecialidad];
+
+        // Si hay sucursal (por ejemplo, desde la secretaria), agregamos ese filtro
+        if (idSucursal) {
+            query += ` AND p.id_sucursal = ?`;
+            params.push(idSucursal);
+        }
+
+        const [resultados] = await conn.execute(query, params);
+        res.json(resultados);
+    } catch (error) {
+        console.error('Error al consultar profesionales:', error);
+        return res.status(500).send('Error al consultar profesionales');
+    }
 };
+
+
 // Buscar especialidades por texto (autocompletar)
 exports.buscarespecialidad = async (req, res) => {
     const query = req.query.query; // Captura la consulta del usuario
@@ -357,6 +466,102 @@ exports.obtenerDatosProfesional = async (req, res) => {
 // Listar médicos activos e inactivos
 exports.listarMedicos = async (req, res) => {
     try {
+        const idSucursal = req.session.id_sucursal;
+        const esAdmin = req.session.user?.id_rol === 1;
+
+        console.log("Filtro aplicado con id_sucursal:", idSucursal);
+
+        // ========================
+        // 🔍 Médicos Activos
+        // ========================
+        let condicionesActivos = ['p.activo = 1'];
+        let paramsActivos = [];
+
+        if (!esAdmin && idSucursal !== undefined && idSucursal !== null) {
+            condicionesActivos.push('p.id_sucursal = ?');
+            paramsActivos.push(idSucursal);
+        }
+
+        const whereActivos = 'WHERE ' + condicionesActivos.join(' AND ');
+
+        // ========================
+        // 🔍 Médicos Inactivos
+        // ========================
+        let condicionesInactivos = ['p.activo = 0'];
+        let paramsInactivos = [];
+
+        if (!esAdmin && idSucursal !== undefined && idSucursal !== null) {
+            condicionesInactivos.push('p.id_sucursal = ?');
+            paramsInactivos.push(idSucursal);
+        }
+
+        const whereInactivos = 'WHERE ' + condicionesInactivos.join(' AND ');
+
+        // ========================
+        // 🗃️ Consulta Médicos Activos
+        // ========================
+        const [medicosActivos] = await conn.execute(`
+            SELECT p.id_profesional, p.nombre, p.apellido, p.dni, p.activo, p.email, s.nombre AS sucursal_nombre,
+                   GROUP_CONCAT(CONCAT(
+                       '{ "id_especialidad": "', e.id_especialidad,
+                       '", "nombre": "', e.nombre,
+                       '", "matricula": "', pe.matricula, '" }')
+                   ) AS especialidades
+            FROM profesionales p
+            LEFT JOIN sucursales s ON p.id_sucursal = s.id_sucursal
+            LEFT JOIN profesionales_especialidades pe ON p.id_profesional = pe.id_profesional
+            LEFT JOIN especialidades e ON pe.id_especialidad = e.id_especialidad
+            ${whereActivos}
+            GROUP BY p.id_profesional, p.nombre, p.apellido, p.dni, p.activo, p.email, s.nombre
+        `, paramsActivos);
+
+        // ========================
+        // 🗃️ Consulta Médicos Inactivos
+        // ========================
+        const [medicosInactivos] = await conn.execute(`
+            SELECT p.id_profesional, p.nombre, p.apellido, p.dni, p.activo, p.email, s.nombre AS sucursal_nombre,
+                   GROUP_CONCAT(CONCAT(
+                       '{ "id_especialidad": "', e.id_especialidad,
+                       '", "nombre": "', e.nombre, '" }')
+                   ) AS especialidades,
+                   GROUP_CONCAT(pe.matricula SEPARATOR ', ') AS matriculas
+            FROM profesionales p
+            LEFT JOIN sucursales s ON p.id_sucursal = s.id_sucursal
+            LEFT JOIN profesionales_especialidades pe ON p.id_profesional = pe.id_profesional
+            LEFT JOIN especialidades e ON pe.id_especialidad = e.id_especialidad
+            ${whereInactivos}
+            GROUP BY p.id_profesional, p.nombre, p.apellido, p.dni, p.activo, p.email, s.nombre
+        `, paramsInactivos);
+
+        // ========================
+        // 🔁 Parseo de especialidades
+        // ========================
+        [medicosActivos, medicosInactivos].forEach(lista => {
+            lista.forEach(medico => {
+                try {
+                    medico.especialidades = medico.especialidades
+                        ? JSON.parse(`[${medico.especialidades}]`)
+                        : [];
+                } catch (error) {
+                    medico.especialidades = [];
+                }
+            });
+        });
+
+        res.render('medicos/listar', {
+            medicosActivos,
+            medicosInactivos
+        });
+
+    } catch (error) {
+        console.error('Error al consultar los médicos:', error);
+        res.status(500).send('Error al consultar los médicos');
+    }
+};
+
+
+/*exports.listarMedicos = async (req, res) => {
+    try {
         // Consultar médicos activos
         const [medicosActivos] = await conn.execute(`
            SELECT p.id_profesional, p.nombre, p.apellido, p.dni, p.activo, p.email, s.nombre AS sucursal_nombre,
@@ -419,13 +624,23 @@ LIMIT 0, 25;
         res.status(500).send('Error al consultar los médicos');
     }
 };
-
+*/
 // Buscar médicos por nombre, apellido o especialidad
 exports.buscarMedicos = async (req, res) => {
-    const query = req.query.query; // Captura la consulta del usuario
+    const query = req.query.query;
+    const idSucursal = req.session.id_sucursal;
+    const esAdmin = req.session.user?.id_rol === 1;
 
     try {
-        console.log("Consulta ingresada por el usuario:", query); // Debug
+        console.log("Consulta ingresada por el usuario:", query);
+
+        let filtros = `(p.nombre LIKE ? OR p.apellido LIKE ? OR e.nombre LIKE ?)`;
+        let params = [`%${query}%`, `%${query}%`, `%${query}%`];
+
+        if (!esAdmin && idSucursal !== undefined && idSucursal !== null) {
+            filtros += ` AND p.id_sucursal = ?`;
+            params.push(idSucursal);
+        }
 
         const [filas] = await conn.execute(`
             SELECT p.id_profesional, p.nombre, p.apellido, p.dni, p.activo, p.email, s.nombre AS sucursal_nombre,
@@ -434,8 +649,8 @@ exports.buscarMedicos = async (req, res) => {
             LEFT JOIN sucursales s ON p.id_sucursal = s.id_sucursal
             LEFT JOIN profesionales_especialidades pe ON p.id_profesional = pe.id_profesional
             LEFT JOIN especialidades e ON pe.id_especialidad = e.id_especialidad
-            WHERE p.nombre LIKE ? OR p.apellido LIKE ? OR e.nombre LIKE ?
-        `, [`%${query}%`, `%${query}%`, `%${query}%`]);
+            WHERE ${filtros}
+        `, params);
 
         // Agrupar resultados por profesional
         const resultados = [];
@@ -465,20 +680,18 @@ exports.buscarMedicos = async (req, res) => {
                     matricula: fila.matricula
                 });
 
-                // Evitar duplicados de matrícula
                 if (!medico.matriculas.includes(fila.matricula)) {
                     medico.matriculas.push(fila.matricula);
                 }
             }
         }
 
-        console.log("Resultados formateados:", JSON.stringify(resultados, null, 2));
+        console.log("Resultados filtrados por sucursal:", JSON.stringify(resultados, null, 2));
 
         if (resultados.length === 0) {
             return res.json({ error: "Profesional o especialidad no encontrados" });
         }
 
-        // Renderizar vista con resultados filtrados
         res.render('medicos/listar', {
             medicosActivos: resultados.filter(m => m.activo == 1),
             medicosInactivos: resultados.filter(m => m.activo == 0)

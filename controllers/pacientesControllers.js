@@ -315,17 +315,82 @@ exports.login = async (req, res, expectedRole) => {
             return res.status(403).send("No tiene permiso para acceder desde esta ruta.");
         }
 
+        // Regenerar sesión para limpiar cualquier dato anterior
+        req.session.regenerate(async err => {
+            if (err) {
+                console.error("Error al regenerar la sesión:", err);
+                return res.status(500).send("Error al iniciar sesión.");
+            }
+
+            // Guardar datos del nuevo usuario en sesión
+            req.session.user = {
+                id: user.id_usuario,
+                email: user.email,
+                id_rol: user.id_rol,
+            };
+
+            // Redirección según el rol
+            if (user.id_rol === 3) {
+                // SECRETARIO
+                const [secretarioData] = await conn.query(`
+                    SELECT s.id_sucursal, suc.nombre 
+                    FROM secretarios s 
+                    JOIN sucursales suc ON s.id_sucursal = suc.id_sucursal 
+                    WHERE s.id_usuario = ?
+                `, [user.id_usuario]);
+
+                if (secretarioData.length > 0) {
+                    const sucursalNombre = secretarioData[0].nombre.toLowerCase().replace(/\s/g, "");
+                    req.session.id_sucursal = secretarioData[0].id_sucursal;
+                    console.log('Sucursal seteada en sesión:', req.session.id_sucursal);
+                    return res.redirect(`/sucursales/${sucursalNombre}`);
+                } else {
+                    return res.status(403).send("No se encontró la sucursal asociada.");
+                }
+
+            } else if (user.id_rol === 2) {
+                // PACIENTE
+                return res.redirect("/sucursales/sucursales");
+            } else {
+                return res.status(403).send("Rol no permitido.");
+            }
+        });
+
+    } catch (error) {
+        console.error("Error al iniciar sesión:", error);
+        res.status(500).send("Hubo un error al iniciar sesión.");
+    }
+};
+
+/*exports.login = async (req, res, expectedRole) => {
+    const { email, password } = req.body;
+
+    try {
+        const [rows] = await conn.query(
+            "SELECT * FROM usuarios WHERE email = ? AND activo = 1",
+            [email]
+        );
+
+        if (rows.length === 0) {
+            return res.status(401).send("Usuario o contraseña incorrectos.");
+        }
+
+        const user = rows[0];
+        const isMatch = await bcrypt.compare(password, user.password);
+
+        if (!isMatch) {
+            return res.status(401).send("Usuario o contraseña incorrectos.");
+        }
+
+        if (user.id_rol !== expectedRole) {
+            return res.status(403).send("No tiene permiso para acceder desde esta ruta.");
+        }
+
         req.session.user = {
             id: user.id_usuario,
             email: user.email,
             id_rol: user.id_rol,
         }
-        /*req.session.usuario = {
-            id_usuario: user.id_usuario,
-            email: user.email,
-            id_rol: user.id_rol
-        };*/
-
 
         // Redirección según el rol
         if (user.id_rol === 3) {
@@ -339,6 +404,8 @@ exports.login = async (req, res, expectedRole) => {
 
             if (secretarioData.length > 0) {
                 const sucursalNombre = secretarioData[0].nombre.toLowerCase().replace(/\s/g, "");
+                req.session.id_sucursal = secretarioData[0].id_sucursal;
+                console.log('Sucursal seteada en sesión:', req.session.id_sucursal);
                 return res.redirect(`/sucursales/${sucursalNombre}`);
             } else {
                 return res.status(403).send("No se encontró la sucursal asociada.");
@@ -354,7 +421,7 @@ exports.login = async (req, res, expectedRole) => {
         console.error("Error al iniciar sesión:", error);
         res.status(500).send("Hubo un error al iniciar sesión.");
     }
-};
+};*/
 
 
 //===========================================================//
@@ -447,7 +514,11 @@ exports.obtenerProfesionales = async (req, res) => {
             query += ' AND p.id_sucursal = ?';
             params.push(id_sucursal);
         }
-
+        /*        // 👉 Si se pasa la sucursal, filtrar por ella también
+               if (id_sucursal !== undefined && id_sucursal !== null && id_sucursal !== '') {
+            query += ' AND p.id_sucursal = ?';
+            params.push(id_sucursal);
+        }*/
         const [profesionales] = await conn.query(query, params);
         res.json(profesionales);
     } catch (error) {
